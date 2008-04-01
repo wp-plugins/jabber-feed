@@ -64,10 +64,7 @@ function xmpp_publish_post ($post_ID) // {{{
 		$history[$post_ID] = FALSE;
 	}
 	else
-	{
-		//echo '**plouf**';
 		$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
-	}
 	update_option('jabber_feed_history', $history);
 
 	return $post_ID;
