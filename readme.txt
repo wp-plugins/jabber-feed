@@ -4,8 +4,8 @@ Contributors: Jehan Hysseo
 Donate link: http://jehan.zemarmot.net/blog/jabber-feed/
 Tags: jabber, xmpp, pubsub, xep-0060, notification, feed
 requires at least: 2.0
-Tested up to: 2.0
-Stable tag: 
+Tested up to: 2.5
+Stable tag: 0.1
 
 This plugin feeds Jabber server pubsub nodes when new posts are published on
 Wordpress and comments are added.
@@ -18,7 +18,7 @@ Jabber when a new post is published.
 
 It enables also to do the same with comments on another xmpp pubsub node, so
 that readers can also subscribe and get notified about new comments
-(separately, you can subscribe to both but also either one or the other node).
+(you can subscribe to both but also separately either one or the other node).
 
 == Installation ==
 
@@ -40,9 +40,9 @@ configuration' under the 'Plugins' menu.
 
 == Working Platforms ==
 
-This script has been tested only currently on Wordpress 2.0 with PHP 5.2.1.
+This script has been tested only currently on Wordpress 2.0 and Wordpres 2.5 with PHP 5.2.1.
 Hopefully it should work with other software versions (even PHP4), but I cannot guarantee.
-Yet if you find a bug or encounter an issue, don't hesitate to tell me, and I will try to fix it.
+Yet if you find a bug or encounter an issue, don't hesitate to tell me, and I will try and fix it.
 
 == Configuration ==
 
@@ -149,9 +149,6 @@ node 	-> posts (leaf)
 
 == Contacts ==
 
-You can contact me on Jabber at xmpp:hysseo [@] zemarmot.net and you can have some
-news about this plugin on [my freedom haven]{http://jehan.zemarmot.net "my
-public diary"} or of course, soon by subscribing on a xmpp pubsub node (I have
-configured one but I must make some finalization first).
+You can contact me on Jabber at xmpp:hysseo [@] zemarmot.net and you can have some news about this plugin on [my freedom haven](http://jehan.zemarmot.net "my public diary") or of course, soon by subscribing on a xmpp pubsub node (I have configured one but I must make some finalization first).
 
 Have a nice life!
