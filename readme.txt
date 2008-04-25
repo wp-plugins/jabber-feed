@@ -20,6 +20,9 @@ It enables also to do the same with comments on another xmpp pubsub node, so
 that readers can also subscribe and get notified about new comments
 (you can subscribe to both but also separately either one or the other node).
 
+Note: this is a first version, you can try it if you are interested (there can
+be no harm! ;-), but I will soon provide far better versions...
+
 == Installation ==
 
 1. Upload the plugin archive to wp-content/plugins/ directory on your

@@ -34,10 +34,10 @@ class xmpp_stream // {{{
 
 	public $server = '';
 	public $port = '';
-
-// If nothing happens on the stream after 5 seconds, I shutdown.
-	private $timeout = 5;
 	private $socket = null;
+
+	// If nothing happens on the stream after 5 seconds, I shutdown.
+	private $timeout = 5;
 	public $last_error = '';
 
 	// Known authentication mechanism.
@@ -52,7 +52,6 @@ class xmpp_stream // {{{
 	private $current_cdata = '';
 	private $features = array ();
 	private $ids = array ();
-	private $stack = array ();
 
 	// FLAGS //
 	private $flags = array ();
@@ -93,7 +92,6 @@ class xmpp_stream // {{{
 			return true;
 
 		$this->socket = new my_socket ();
-		//$_socket = $this->socket;
 		$this->socket->server = $this->server;
 		$this->socket->port = $this->port;
 
@@ -109,10 +107,8 @@ class xmpp_stream // {{{
 	
 	function quit () // {{{
 	{
-		// through stack, close all tags!
 		$this->socket->close ();
 		unset ($this->flags);
-		unset ($this->stack);
 		return true;
 	} // }}}
 
@@ -218,15 +214,17 @@ class xmpp_stream // {{{
 			$message .= "<summary>" . $excerpt . "</summary>";
 		else
 		{
+			// I use CDATA because '&' are illegal in XML, like in the character entity "&oelig;".
+			// Isn't it a bug to report to ejabberd?
 			//$message .= '<content type="xhtml">' . 'n&oelig;uds de publication' . '</content>';
-			//$message .= '<content type="xhtml">' . $content . '</content>';
 			$message .= '<content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><![CDATA[' . $content;
 			$message .= ']]></div></content>';
 		}
-        	$message .= '<link rel="alternate" type="text/html" href="';
+
+      $message .= '<link rel="alternate" type="text/html" href="';
 		$message .= $link . '"/>';
-	        $message .= "<id>" . $id . "</id>";
-        	$message .= "<published>" . $date . "</published><updated>" . $date . "</updated>";
+		$message .= "<id>" . $id . "</id>";
+		$message .= "<published>" . $date . "</published><updated>" . $date . "</updated>";
 		$message .= "</entry></item></publish></pubsub></iq>";
 
 		//echo htmlentities ($message); // for test
@@ -238,7 +236,6 @@ class xmpp_stream // {{{
 			$this->quit ();
 			return FALSE;
 		}
-
 
 		return ($this->process_read ("notification_start_handler",
 			"notification_end_handler", 'published'));
@@ -315,13 +312,11 @@ class xmpp_stream // {{{
 	private function common_start_handler ($name) // {{{
 	{
 		//echo $name . '<br/>';
-		$this->stack[] = $name; // useless currently. TODO
 		$this->current_cdata = '';
 	} // }}}
 
 	private function common_end_handler () // {{{
 	{
-		array_pop ($this->stack);
 		return;
 	} // }}}
 
