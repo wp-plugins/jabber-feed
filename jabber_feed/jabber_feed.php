@@ -26,6 +26,7 @@ Author URI: http://jehan.zemarmot.net
 */
 
 require_once(dirname(__FILE__) . '/xmpp_stream.php');
+require_once(dirname(__FILE__) . '/templates.php');
 
 ///////////////////////
 // Post Publication  //
