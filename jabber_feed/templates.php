@@ -26,21 +26,39 @@ Author URI: http://jehan.zemarmot.net
 */
 
 
+// to display: jabber_feed_info
+// to use: get_jabber_feed_info
+
+// params: default is url of posts, param1 is what ('comment', 'post', 'page'), param2 is id (only for comments -> will be answer to posts and pages), param3 is text (only for a), param4 is tag ('a' or 'link').
 /************************\
 Url of posts publications
 'text' is optional displayed text.
 \************************/
-function jabber_feed_posts ($text = '')
+function jabber_feed_posts_a ($text = '')
 {
 	$configuration = get_option ('jabber_feed_configuration');
-	$url = "<a rel='alternate' type='application/xmpp-notify+xml' href='xmpp:";
-	$url .= $configuration['pubsub_server'] . "?pubsub;action=subscribe;node=";
+	$url = "<a rel='alternate' href='xmpp:";
+	$url .= $configuration['pubsub_server'] . "?action=subscribe;node=";
 	$url .= $configuration['posts_node'] . "'>";
 	if (empty ($text))
 		$url .= "Entries (Jabber)";
 	else
 		$url .= htmlentities ($text);
 	$url .= "</a>";
+	echo $url;
+	return;
+}
+
+/************************\
+Url of posts publications
+'text' is optional displayed text.
+\************************/
+function jabber_feed_posts_link ()
+{
+	$configuration = get_option ('jabber_feed_configuration');
+	$url = "<link rel='alternate' href='xmpp:";
+	$url .= $configuration['pubsub_server'] . "?action=subscribe;node=";
+	$url .= $configuration['posts_node'] . "'/>";
 	echo $url;
 	return;
 }
