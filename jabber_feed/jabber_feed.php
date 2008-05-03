@@ -60,7 +60,7 @@ function xmpp_publish_post ($post_ID) // {{{
 	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
 		&& $xs->session_establish ()
 		&& $xs->notify ($configuration['pubsub_server'],
-			$configuration['posts_node'], $id, $feed_title,
+			$configuration['pubsub_node'] . '/posts', $id, $feed_title,
 			$link, $feed_content, $feed_excerpt)
 		&& $xs->quit ()))
 	{
@@ -77,7 +77,16 @@ function xmpp_publish_post ($post_ID) // {{{
 	return $post_ID;
 } // }}}
 
+
+function xmpp_test ()
+{
+	?>
+	<input type="submit" value="Publish on Jabber Node" name="publishjabber" class="button-secondary" />
+	<?php
+}
+
 add_action ('publish_post', 'xmpp_publish_post');
+add_action ('restrict_manage_posts', 'xmpp_test'); // For TEST!!!
 //add_action ('delete_post', 'xmpp_delete_post_page');
 
 ///////////////////////////
@@ -173,6 +182,10 @@ function jabber_feed_configuration_page () // {{{
 	//now we drop into html to display the option page form
 	?>
 	<div class="wrap">
+		<?php $history = get_option('jabber_feed_history');
+		print_r ($history);
+		//echo $history[87];
+		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
 		<form method="post" action="">
 			<fieldset class="options">
@@ -338,7 +351,7 @@ function jabber_feed_custom_column ($column, $id) // {{{
 			if ($history[$id] === FALSE)
 				echo 'X';
 			else
-				echo $history[$id];
+				echo $history[$id]['published'];
 		else
 			echo '-';
 	}
