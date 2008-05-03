@@ -30,68 +30,66 @@ Author URI: http://jehan.zemarmot.net
 // to use: get_jabber_feed_info
 
 // params: default is url of posts, param1 is what ('comment', 'post', 'page'), param2 is id (only for comments -> will be answer to posts and pages), param3 is text (only for a), param4 is tag ('a' or 'link').
-/************************\
-Url of posts publications
-'text' is optional displayed text.
-\************************/
-function jabber_feed_posts_a ($text = '')
-{
-	$configuration = get_option ('jabber_feed_configuration');
-	$url = "<a rel='alternate' href='xmpp:";
-	$url .= $configuration['pubsub_server'] . "?action=subscribe;node=";
-	$url .= $configuration['posts_node'] . "'>";
-	if (empty ($text))
-		$url .= "Entries (Jabber)";
-	else
-		$url .= htmlentities ($text);
-	$url .= "</a>";
-	echo $url;
-	return;
-}
+
 
 /************************\
 Url of posts publications
-'text' is optional displayed text.
+- 'what' can be the bare 'url', or included in a 'a' tag, or a 'link' tag;
+- 'node' can be 'all', 'posts', 'pages', 'comments', 'current' (comments of the current page/post) or a number (comments of the numbered post/page);
+- 'text' is optional displayed text (only when 'a' tag).
 \************************/
-function jabber_feed_posts_link ()
-{
-	$configuration = get_option ('jabber_feed_configuration');
-	$url = "<link rel='alternate' href='xmpp:";
-	$url .= $configuration['pubsub_server'] . "?action=subscribe;node=";
-	$url .= $configuration['posts_node'] . "'/>";
-	echo $url;
-	return;
-}
 
-/***************************\
-Url of comments publications
-1/ 'text' is optional displayed text.
-2/ 'post_id' is either:
-- a number (node for a specific post);
-- 'current' (node for the current post);
-- 'all' by default (all comments).
-\***************************/
-function jabber_feed_comments ($text = '', $post_id = 'all')
+function jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
 {
 	global $id;
 	$configuration = get_option ('jabber_feed_configuration');
-	$url = "<a rel='alternate' type='application/xmpp-notify+xml' href='xmpp:";
-	$url .= $configuration['pubsub_server'] . "?pubsub;action=subscribe;node=";
-	$url .= $configuration['comments_node'];
-
-	if ($post_id == 'current')
-		$url .= '/' . $id;
-	elseif (is_int ($post_id))
-		$url .= '/' . $post_id;
 	
-	$url .= "'>";
-	if (empty ($text))
-		$url .= "Comments (Jabber)";
-	else
-		$url .= htmlentities ($text);
-	$url .= "</a>";
-	echo $url;
-	return;
+	$url = "xmpp:" . $configuration['pubsub_server'] . "?action=subscribe;node=";
+	$url .= $configuration['posts_node'];
+
+	if ($node == 'comments')
+		$url .= '/comments';
+	elseif ($node == 'pages')
+		$url .= '/pages';
+	elseif ($node == 'current')
+		$url .= '/comments/' . $id;
+	elseif (is_int ($node))
+		$url .= '/comments/' . $node;
+	elseif ($node == 'posts' || $node != 'all')
+		$url .= '/posts';
+
+	if ($what == 'a')
+	{
+		$url = "<a rel='alternate' href='" . $url . "'>";
+		if (empty ($text))
+		{
+			if ($node == 'comments')
+				$url .= __('Comments') . " (Jabber)";
+			elseif ($node == 'current')
+				$url .= __('Comments of this entry') . " (Jabber)";
+			elseif ($node == 'pages')
+				$url .= __('Pages') . " (Jabber)";
+			elseif (is_int ($node))
+				$url .= __('Comments of entry ') . $id . " (Jabber)";
+			elseif ($node == 'posts' || $node != 'all')
+				$url .= __('Entries') . " (Jabber)";
+			else
+				$url .= __('Entries, pages and comments');
+		}
+		else
+			$url .= htmlentities ($text);
+		$url .= "</a>";
+	}
+	elseif ($what == 'link')
+		$url = "<link rel='alternate' href='" . $url . "' />";
+
+	return $url;
+}
+
+
+function jabber_feed_display ($node = 'posts', $what = 'url', $text = '')
+{
+	echo jabber_feed_get ($node, $what, $text);
 }
 
 ?>
