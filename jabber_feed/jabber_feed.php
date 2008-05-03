@@ -69,7 +69,7 @@ function xmpp_publish_post ($post_ID) // {{{
 	}
 	else
 	{
-		if (array_key_exists ($id, $history) && ! array_key_exists ('error', $history[$id]))
+		if (array_key_exists ($post_ID, $history) && ! array_key_exists ('error', $history[$post_ID]))
 			$history[$post_ID]['updated'] = date ('c');
 		else
 			$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
@@ -116,6 +116,8 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 			$configuration['domain'], $configuration['password'],
 			'bot', $configuration['server'], $configuration['port']);
 		
+		// Must check whether container already exists and create it otherwise!
+
 		if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
 			&& $xs->session_establish ()
 			&& $xs->notify ($configuration['pubsub_server'],
