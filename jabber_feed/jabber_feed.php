@@ -66,7 +66,7 @@ function xmpp_publish_post ($post_ID) // {{{
 	{
 		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
 		echo $xs->last_error . '</p></div>';
-		$history[$post_ID] = FALSE;
+		$history[$post_ID] = array ('error' => $xs->last_error);
 	}
 	else
 	{
@@ -348,12 +348,20 @@ function jabber_feed_custom_column ($column, $id) // {{{
 	{
 		$history = get_option('jabber_feed_history');
 		if (array_key_exists ($id, $history))
-			if ($history[$id] === FALSE)
-				echo 'X';
+		{
+			if (array_key_exists ('error', $history[$id]))
+			{
+				echo '<abbr title="' . $history[$id]['error'] . '">';
+				echo '<em>Error on publication</em></abbr>';
+			}
 			else
-				echo $history[$id]['published'];
+			{
+				echo '<abbr title="last update: ' . $history[$id]['updated'] . '">';
+				echo $history[$id]['published'] . '</abbr>';
+			}
+		}
 		else
-			echo '-';
+			echo '<em>Not Published</em>';
 	}
 } // }}}
 
