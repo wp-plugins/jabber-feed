@@ -31,6 +31,17 @@ Wordpress installation;
 3. Activate the plugin through the 'Plugins' menu in Wordpress;
 4. Configure the plugin through the appearing sub-menu 'Jabber Feed
 configuration' under the 'Plugins' menu.
+5. This plugin also defines two templates:
+* jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
+will return a string being a url (bare, or in a 'a' or 'link' tag).
+and
+* jabber_feed_display ($node = 'posts', $what = 'url', $text = '')
+is the same as the previous template but display the string instead of
+returning it!
+This template function can be used in your theme.
+Note that if your theme uses the 'wp_head' function in its header (most
+cases), a autodiscovery link on the post node will be automatically generated
+in the header.
 
 == dependencies ==
 
@@ -46,6 +57,14 @@ configuration' under the 'Plugins' menu.
 This script has been tested only currently on Wordpress 2.0 and Wordpres 2.5 with PHP 5.2.1.
 Hopefully it should work with other software versions (even PHP4), but I cannot guarantee.
 Yet if you find a bug or encounter an issue, don't hesitate to tell me, and I will try and fix it.
+
+== Features ==
+
+1. Automatically publish posts and/or comments on a Jabber pubsub node;
+2. Add an autodiscovery of the posts node in your website header if your theme
+uses the wp_head function;
+3. Provide 2 templates to get or display addresses to your Jabber publication
+nodes.
 
 == Configuration ==
 

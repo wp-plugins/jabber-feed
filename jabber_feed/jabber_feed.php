@@ -3,7 +3,7 @@
 Plugin Name: Jabber Feed
 Plugin URI: http://jehan.zemarmot.net/blog/jabber-feed/
 Description: a Jabber publishing notification for articles and comments.
-Version: 0.1
+Version: 0.2
 Author: Jehan Hysseo
 Author URI: http://jehan.zemarmot.net
 */
@@ -79,7 +79,7 @@ function xmpp_publish_post ($post_ID) // {{{
 	return $post_ID;
 } // }}}
 
-function xmpp_delete_post_page ($ID)
+function xmpp_delete_post_page ($ID) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
 	$history = get_option('jabber_feed_history');
@@ -87,7 +87,7 @@ function xmpp_delete_post_page ($ID)
 	if (array_key_exists ($id, $history) && ! array_key_exists ('error', $history[$id]))
 		// remove_container ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/posts',  $history['id']);
 	return $ID;
-}
+} // }}}
 
 add_action ('publish_post', 'xmpp_publish_post');
 add_action ('delete_post', 'xmpp_delete_post_page');
@@ -146,12 +146,13 @@ function xmpp_delete_comment ($comment_ID) // {{{
 add_action ('comment_post', 'xmpp_publish_comment', 10, 2);
 add_action ('delete_comment', 'xmpp_delete_comment');
 
-add_option('jabber_feed_configuration', array (), 'Configuration of the Jabber Feed plugin', 'yes');
-add_option ('jabber_feed_history', array (), 'All information about fed posts, successes and failures', 'yes');
-
 /**********************\
 // Configuration Page \\
 \**********************/
+
+add_option('jabber_feed_configuration', array (), 'Configuration of the Jabber Feed plugin', 'yes');
+add_option ('jabber_feed_history', array (), 'All information about fed posts, successes and failures', 'yes');
+
 function jabber_feed_configuration_page () // {{{
 {
 	global $wpdb;
@@ -391,13 +392,14 @@ add_action ('restrict_manage_posts', 'jabber_feed_publish_button');
 /**********************\
 // Autodiscovery link \\
 \**********************/
+
 // Runs when the template calls the wp_head function.
 // Themes usually call this function. If not, you can do it manually with the Jabber Feed's templates.
 
-function jabber_feed_header ()
+function jabber_feed_header () // {{{
 {
 	jabber_feed_display ('posts', 'link');
-}
+} // }}}
 
 add_action ('wp_head', 'jabber_feed_header');
 
