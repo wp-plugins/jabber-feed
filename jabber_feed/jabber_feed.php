@@ -145,8 +145,9 @@ function jabber_feed_configuration_page () // {{{
 			$configuration['port'] = intval ($posted_port);
 
 		$configuration['pubsub_server'] = strip_tags (trim($_POST['pubsub_server']));
-		$configuration['posts_node'] = strip_tags (trim($_POST['posts_node']));
-		$configuration['comments_node'] = strip_tags (trim($_POST['comments_node']));
+		$configuration['pubsub_node'] = strip_tags (trim($_POST['pubsub_node']));
+		//$configuration['posts_node'] = strip_tags (trim($_POST['posts_node']));
+		//$configuration['comments_node'] = strip_tags (trim($_POST['comments_node']));
 
 
 		update_option('jabber_feed_configuration', $configuration);
@@ -216,7 +217,7 @@ function jabber_feed_configuration_page () // {{{
 			</fieldset>
 				
 			<fieldset class="options">
-				<legend><?php _e('PubSub Nodes') ?></legend>
+				<legend><?php _e('PubSub configuration') ?></legend>
 
 				<p><label>
 				<?php _e('Server') ?><br />
@@ -228,22 +229,38 @@ function jabber_feed_configuration_page () // {{{
 				</label></p>
 
 				<p><label>
-				<?php _e('Node for Posts notification') ?><br />
-					<input name="posts_node"
+				<?php _e('Publication Node') ?><br />
+					<input name="pubsub_node"
 						type="text"
-						id="posts_node"
-						value="<?php echo $configuration['posts_node']; ?>"
+						id="pubsub_node"
+						value="<?php echo $configuration['pubsub_node']; ?>"
 						size="60" />
 				</label></p>
 
-				<p><label>
-				<?php _e('Node for Comments notification') ?><br />
-					<input name="comments_node"
-						type="text"
-						id="comments_node"
-						value="<?php echo $configuration['comments_node']; ?>"
-						size="60" />
-				</label></p>
+				<p>
+				<label>
+				<?php _e('Publication Contents') ?><br />
+					<input name="publish_posts"
+						type="checkbox"
+						id="publish_posts"
+						checked="<?php echo $configuration['publish_posts']; ?>" />
+				</label>
+				<label>
+				<?php _e('Publication Contents') ?><br />
+					<input name="publish_comments"
+						type="checkbox"
+						id="publish_comments"
+						checked="<?php echo $configuration['publish_comments']; ?>" />
+				</label>
+				<label>
+				<?php _e('Publication Contents') ?><br />
+					<input name="publish_pages"
+						type="checkbox"
+						id="publish_pages"
+						checked="<?php echo $configuration['publish_pages']; ?>" />
+				</label>
+				
+				</p>
 			</fieldset>
 
 			<div class="submit">
