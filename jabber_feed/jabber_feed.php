@@ -78,6 +78,7 @@ function xmpp_publish_post ($post_ID) // {{{
 } // }}}
 
 add_action ('publish_post', 'xmpp_publish_post');
+//add_action ('delete_post', 'xmpp_delete_post_page');
 
 ///////////////////////////
 // Comment Publication  //
@@ -121,6 +122,7 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 } // }}}
 
 add_action ('comment_post', 'xmpp_publish_comment', 10, 2);
+//add_action ('delete_comment', 'xmpp_delete_comment');
 
 add_option('jabber_feed_configuration', array (), 'Configuration of the Jabber Feed plugin', 'yes');
 add_option ('jabber_feed_history', array (), 'All information about fed posts, successes and failures', 'yes');
@@ -282,7 +284,7 @@ function jabber_feed_configuration_page () // {{{
 						<?php } ?>
 					/>
 					<label for="publish_pages"><?php _e('Publish pages') ?></label><br />
-				
+			
 				</p>
 			</fieldset>
 
@@ -332,7 +334,7 @@ function jabber_feed_custom_column ($column, $id) // {{{
 	if ($column == 'jabber_feed')
 	{
 		$history = get_option('jabber_feed_history');
-		if (array_key_exists ('$id', $history))
+		if (array_key_exists ($id, $history))
 			if ($history[$id] === FALSE)
 				echo 'X';
 			else
