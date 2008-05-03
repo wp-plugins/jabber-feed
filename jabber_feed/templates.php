@@ -1,13 +1,4 @@
 <?php
-/*
-Plugin Name: Jabber Feed
-Plugin URI: http://jehan.zemarmot.net/blog/jabber-feed/
-Description: a Jabber publishing notification for articles and comments.
-Version: 0.1
-Author: Jehan Hysseo
-Author URI: http://jehan.zemarmot.net
-*/
-
 /*  Copyright 2008 Jehan Hysseo  (email : jehan at zemarmot.net)
 
     This program is free software; you can redistribute it and/or modify
