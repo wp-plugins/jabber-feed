@@ -30,7 +30,7 @@ function jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
 	$configuration = get_option ('jabber_feed_configuration');
 	
 	$url = "xmpp:" . $configuration['pubsub_server'] . "?action=subscribe;node=";
-	$url .= $configuration['posts_node'];
+	$url .= $configuration['pubsub_node'];
 
 	if ($node == 'comments')
 		$url .= '/comments';
