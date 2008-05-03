@@ -32,7 +32,6 @@ require_once(dirname(__FILE__) . '/templates.php');
 // Post Publication  //
 ///////////////////////
 
-
 function xmpp_publish_post ($post_ID) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
@@ -70,24 +69,28 @@ function xmpp_publish_post ($post_ID) // {{{
 	}
 	else
 	{
-		$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
-		update_option('jabber_feed_history', $history);
+		if (array_key_exists ($id, $history) && ! array_key_exists ('error', $history[$id]))
+			$history[$post_ID]['updated'] = date ('c');
+		else
+			$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
 	}
+	update_option('jabber_feed_history', $history);
 
 	return $post_ID;
 } // }}}
 
-
-function xmpp_test ()
+function xmpp_delete_post_page ($ID)
 {
-	?>
-	<input type="submit" value="Publish on Jabber Node" name="publishjabber" class="button-secondary" />
-	<?php
+	$configuration = get_option ('jabber_feed_configuration');
+	$history = get_option('jabber_feed_history');
+
+	if (array_key_exists ($id, $history) && ! array_key_exists ('error', $history[$id]))
+		// remove_container ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/posts',  $history['id']);
+	return $ID;
 }
 
 add_action ('publish_post', 'xmpp_publish_post');
-add_action ('restrict_manage_posts', 'xmpp_test'); // For TEST!!!
-//add_action ('delete_post', 'xmpp_delete_post_page');
+add_action ('delete_post', 'xmpp_delete_post_page');
 
 ///////////////////////////
 // Comment Publication  //
@@ -116,22 +119,30 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 		if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
 			&& $xs->session_establish ()
 			&& $xs->notify ($configuration['pubsub_server'],
-				$configuration['comments_node'], $id, $feed_title,
+				$configuration['pubsub_node'] . '/comments/' . $post->ID, $id, $feed_title,
 				$link, $feed_content, '')
 			&& $xs->quit ()))
 		{
 			echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
 			echo $xs->last_error . '</p></div>';
 		}
-			
-
 	}
 
 	return $comment_ID;
 } // }}}
 
+function xmpp_delete_comment ($comment_ID) // {{{
+{
+	$configuration = get_option ('jabber_feed_configuration');
+	$comment = get_comment ($comment_ID, OBJECT);
+	$post = get_post ($comment->comment_post_ID, OBJECT);
+	
+	// remove ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post->ID, $comment_ID)
+	return $comment_ID;
+} // }}}
+
 add_action ('comment_post', 'xmpp_publish_comment', 10, 2);
-//add_action ('delete_comment', 'xmpp_delete_comment');
+add_action ('delete_comment', 'xmpp_delete_comment');
 
 add_option('jabber_feed_configuration', array (), 'Configuration of the Jabber Feed plugin', 'yes');
 add_option ('jabber_feed_history', array (), 'All information about fed posts, successes and failures', 'yes');
@@ -165,9 +176,6 @@ function jabber_feed_configuration_page () // {{{
 		$configuration['publish_posts'] = strip_tags (trim($_POST['publish_posts']));
 		$configuration['publish_comments'] = strip_tags (trim($_POST['publish_comments']));
 		$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
-		//$configuration['posts_node'] = strip_tags (trim($_POST['posts_node']));
-		//$configuration['comments_node'] = strip_tags (trim($_POST['comments_node']));
-
 
 		update_option('jabber_feed_configuration', $configuration);
 
@@ -183,7 +191,7 @@ function jabber_feed_configuration_page () // {{{
 	?>
 	<div class="wrap">
 		<?php $history = get_option('jabber_feed_history');
-		print_r ($history);
+		print_r ($history); // for tests!
 		//echo $history[87];
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
@@ -290,7 +298,7 @@ function jabber_feed_configuration_page () // {{{
 						type="checkbox"
 						id="publish_pages"
 						<?php
-						if (! empty ($configuration['publish_comments']))
+						if (! empty ($configuration['publish_pages']))
 						{
 						?>
 						checked="checked"
@@ -330,11 +338,12 @@ function jabber_feed_menu () // {{{
 		add_submenu_page('plugins.php', __('Jabber Feed'), __('Jabber Feed configuration'), 1, __FILE__, 'jabber_feed_configuration_page');
 } // }}}
 
+// Install the configuration page.
+add_action ('admin_menu', 'jabber_feed_menu');
+
 /*******************\
 // Management Page \\
 \*******************/
-// for each post in the list, you just add: date of publication OR X = failed publication OR '-' = never published, and a button to publish?
-// what about changing also the bottom of posts?
 
 function jabber_feed_admin_columns ($defaults) // {{{
 {
@@ -365,10 +374,23 @@ function jabber_feed_custom_column ($column, $id) // {{{
 	}
 } // }}}
 
-// Install the configuration and modify the manage page.
-add_action ('admin_menu', 'jabber_feed_menu');
+function jabber_feed_publish_button () // {{{
+{
+	?>
+	<input type="submit" value="Publish on Jabber Node" name="publishjabber" class="button-secondary" />
+	<?php
+} // }}}
+
+// Modify the Manage page.
 add_filter('manage_posts_columns', 'jabber_feed_admin_columns');
 add_action ('manage_posts_custom_column', 'jabber_feed_custom_column', 10, 2);
+add_action ('restrict_manage_posts', 'jabber_feed_publish_button');
+
+/**********************\
+// Autodiscovery link \\
+\**********************/
+// Runs when the template calls the wp_head function.
+// Themes usually call this function. If not, you can do it manually with the Jabber Feed's templates.
 
 function jabber_feed_header ()
 {
