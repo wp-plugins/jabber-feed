@@ -17,12 +17,6 @@
 */
 
 
-// to display: jabber_feed_info
-// to use: get_jabber_feed_info
-
-// params: default is url of posts, param1 is what ('comment', 'post', 'page'), param2 is id (only for comments -> will be answer to posts and pages), param3 is text (only for a), param4 is tag ('a' or 'link').
-
-
 /************************\
 Url of posts publications
 - 'what' can be the bare 'url', or included in a 'a' tag, or a 'link' tag;

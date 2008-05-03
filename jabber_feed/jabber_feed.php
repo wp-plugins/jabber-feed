@@ -238,22 +238,23 @@ function jabber_feed_configuration_page () // {{{
 				</label></p>
 
 				<p>
+				<?php _e('Publication Contents:') ?> <br />
 				<label>
-				<?php _e('Publication Contents') ?><br />
+				<?php _e('Publish posts') ?>
 					<input name="publish_posts"
 						type="checkbox"
 						id="publish_posts"
 						checked="<?php echo $configuration['publish_posts']; ?>" />
 				</label>
 				<label>
-				<?php _e('Publication Contents') ?><br />
+				<?php _e('Publish comments') ?>
 					<input name="publish_comments"
 						type="checkbox"
 						id="publish_comments"
 						checked="<?php echo $configuration['publish_comments']; ?>" />
 				</label>
 				<label>
-				<?php _e('Publication Contents') ?><br />
+				<?php _e('Publish pages') ?><br />
 					<input name="publish_pages"
 						type="checkbox"
 						id="publish_pages"
