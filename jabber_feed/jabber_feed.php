@@ -370,4 +370,11 @@ add_action ('admin_menu', 'jabber_feed_menu');
 add_filter('manage_posts_columns', 'jabber_feed_admin_columns');
 add_action ('manage_posts_custom_column', 'jabber_feed_custom_column', 10, 2);
 
+function jabber_feed_header ()
+{
+	jabber_feed_display ('posts', 'link');
+}
+
+add_action ('wp_head', 'jabber_feed_header');
+
 ?>
