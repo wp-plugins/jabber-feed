@@ -36,6 +36,10 @@ require_once(dirname(__FILE__) . '/templates.php');
 function xmpp_publish_post ($post_ID) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
+
+	if (empty ($configuration['publish_posts']))
+		return $post_ID;
+
 	$blog_title = get_bloginfo ('name'); 
 
 	$post = get_post ($post_ID, OBJECT);
@@ -81,9 +85,9 @@ add_action ('publish_post', 'xmpp_publish_post');
 
 function xmpp_publish_comment ($comment_ID, $status) // {{{
 {
-	if ($status == 1)
+	$configuration = get_option ('jabber_feed_configuration');
+	if ($status == 1 && ! empty ($configuration['publish_comments']))
 	{
-		$configuration = get_option ('jabber_feed_configuration');
 		$blog_title = get_bloginfo ('name'); 
 
 		$comment = get_comment ($comment_ID, OBJECT);
@@ -146,6 +150,10 @@ function jabber_feed_configuration_page () // {{{
 
 		$configuration['pubsub_server'] = strip_tags (trim($_POST['pubsub_server']));
 		$configuration['pubsub_node'] = strip_tags (trim($_POST['pubsub_node']));
+
+		$configuration['publish_posts'] = strip_tags (trim($_POST['publish_posts']));
+		$configuration['publish_comments'] = strip_tags (trim($_POST['publish_comments']));
+		$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
 		//$configuration['posts_node'] = strip_tags (trim($_POST['posts_node']));
 		//$configuration['comments_node'] = strip_tags (trim($_POST['comments_node']));
 
@@ -238,28 +246,42 @@ function jabber_feed_configuration_page () // {{{
 				</label></p>
 
 				<p>
-				<?php _e('Publication Contents:') ?> <br />
-				<label>
-				<?php _e('Publish posts') ?>
+					<strong><?php _e('Publication Contents:') ?></strong><br />
 					<input name="publish_posts"
 						type="checkbox"
 						id="publish_posts"
-						checked="<?php echo $configuration['publish_posts']; ?>" />
-				</label>
-				<label>
-				<?php _e('Publish comments') ?>
+						<?php
+						if (! empty ($configuration['publish_posts']))
+						{
+						?>
+						checked="checked"
+						<?php } ?>
+					/>
+					<label for="publish_posts"><?php _e('Publish posts') ?></label><br />
+
 					<input name="publish_comments"
 						type="checkbox"
 						id="publish_comments"
-						checked="<?php echo $configuration['publish_comments']; ?>" />
-				</label>
-				<label>
-				<?php _e('Publish pages') ?><br />
+						<?php
+						if (! empty ($configuration['publish_comments']))
+						{
+						?>
+						checked="checked"
+						<?php } ?>
+					/>
+					<label for="publish_comments"><?php _e('Publish comments') ?></label><br />
+
 					<input name="publish_pages"
 						type="checkbox"
 						id="publish_pages"
-						checked="<?php echo $configuration['publish_pages']; ?>" />
-				</label>
+						<?php
+						if (! empty ($configuration['publish_comments']))
+						{
+						?>
+						checked="checked"
+						<?php } ?>
+					/>
+					<label for="publish_pages"><?php _e('Publish pages') ?></label><br />
 				
 				</p>
 			</fieldset>
