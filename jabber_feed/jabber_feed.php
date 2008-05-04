@@ -82,11 +82,10 @@ function xmpp_publish_post ($post_ID) // {{{
 function xmpp_delete_post_page ($ID) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
+	$history = get_option('jabber_feed_history');
 
 	if (empty ($configuration['publish_posts']) || ! array_key_exists ($id, $history) || array_key_exists ('error', $history[$id]))
 		return $ID;
-
-	$history = get_option('jabber_feed_history');
 
 	$xs = new xmpp_stream ($configuration['node'],
 		$configuration['domain'], $configuration['password'],
