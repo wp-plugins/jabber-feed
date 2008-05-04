@@ -1,6 +1,6 @@
 <?php
 /************ Jabber Feed ***************\
-
+{{{
 Jabber Feed is a plugin for the Wordpress diary engine.
 
     Copyright 2008 Jehan Hysseo  (email : jehan at zemarmot.net)
@@ -18,6 +18,7 @@ Jabber Feed is a plugin for the Wordpress diary engine.
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+}}}
 */
 
 require_once('Auth/SASL/DigestMD5.php');
@@ -241,6 +242,51 @@ class xmpp_stream // {{{
 			"notification_end_handler", 'published'));
 	} // }}}
 
+	function delete_item ($server, $node, $id) // {{{
+	{
+		$iq_id = time ();
+		$this->ids['publish'] = 'retract' . $iq_id;
+
+		$message = "<iq type='set' from='" . $this->jid . "' ";
+		$message .= "to='" . $server . "' id='retract" . $iq_id . "'>";
+		$message .= "<pubsub xmlns='http://jabber.org/protocol/pubsub'>";
+		$message .= "<retract node='" . $node . "'><item id='";
+		$message .= $id . "' /></retract></pubsub></iq>";
+
+		if (! $this->socket->send ($message))
+		{
+			$this->last_error = __('Notification failure.') . '<br />';
+			$this->last_error .= $this->socket->last_error;
+			$this->quit ();
+			return FALSE;
+		}
+
+		return ($this->process_read ("notification_start_handler",
+			"notification_end_handler", 'published'));
+	} // }}}
+
+	function delete_container ($server, $node, $id) // {{{
+	{
+		$iq_id = time ();
+		$this->ids['delete'] = 'delete' . $iq_id;
+
+		$message = "<iq type='set' from='" . $this->jid . "' ";
+		$message .= "to='" . $server . "' id='delete" . $iq_id . "'>";
+		$message .= "<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>";
+		$message .= "<delete node='" . $node . "' />";
+		$message .= "</pubsub></iq>";
+
+		if (! $this->socket->send ($message))
+		{
+			$this->last_error = __('Notification failure.') . '<br />';
+			$this->last_error .= $this->socket->last_error;
+			$this->quit ();
+			return FALSE;
+		}
+
+		return ($this->process_read ("notification_start_handler",
+			"notification_end_handler", 'published'));
+	} // }}}
 
 // parse data from the socket according to given handlers until $flag is true.
 	private function process_read ($start_element_handler,

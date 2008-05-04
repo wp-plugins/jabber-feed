@@ -82,10 +82,31 @@ function xmpp_publish_post ($post_ID) // {{{
 function xmpp_delete_post_page ($ID) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
+
+	if (empty ($configuration['publish_posts']) || ! array_key_exists ($id, $history) || array_key_exists ('error', $history[$id]))
+		return $ID;
+
 	$history = get_option('jabber_feed_history');
 
-	if (array_key_exists ($id, $history) && ! array_key_exists ('error', $history[$id]))
-		// remove_container ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/posts',  $history['id']);
+	$xs = new xmpp_stream ($configuration['node'],
+		$configuration['domain'], $configuration['password'],
+		'bot', $configuration['server'], $configuration['port']);
+	
+	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
+		&& $xs->session_establish ()
+		&& $xs->delete_item ($configuration['pubsub_server'],
+			$configuration['pubsub_node'] . '/posts', $history['id'])
+		&& $xs->quit ()))
+	{
+		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
+		echo $xs->last_error . '</p></div>';
+	}
+	else
+	{
+			unset ($history[$ID]);
+	}
+	update_option('jabber_feed_history', $history);
+
 	return $ID;
 } // }}}
 
@@ -136,10 +157,26 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 function xmpp_delete_comment ($comment_ID) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
+
+	if (empty ($configuration['publish_comments']))
+		return $comment_ID;
+
 	$comment = get_comment ($comment_ID, OBJECT);
-	$post = get_post ($comment->comment_post_ID, OBJECT);
+
+	$xs = new xmpp_stream ($configuration['node'],
+		$configuration['domain'], $configuration['password'],
+		'bot', $configuration['server'], $configuration['port']);
 	
-	// remove ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post->ID, $comment_ID)
+	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
+		&& $xs->session_establish ()
+		&& $xs->delete_item ($configuration['pubsub_server'],
+			$configuration['pubsub_node'] . '/comments' . $comment->comment_post_ID, $ID)
+		&& $xs->quit ()))
+	{
+		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
+		echo $xs->last_error . '</p></div>';
+	}
+
 	return $comment_ID;
 } // }}}
 
