@@ -94,7 +94,7 @@ function xmpp_delete_post_page ($ID) // {{{
 	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
 		&& $xs->session_establish ()
 		&& $xs->delete_item ($configuration['pubsub_server'],
-			$configuration['pubsub_node'] . '/posts', $history['id'])
+			$configuration['pubsub_node'] . '/posts', $history[$ID]['id'])
 		&& $xs->quit ()))
 	{
 		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
@@ -169,7 +169,7 @@ function xmpp_delete_comment ($comment_ID) // {{{
 	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
 		&& $xs->session_establish ()
 		&& $xs->delete_item ($configuration['pubsub_server'],
-			$configuration['pubsub_node'] . '/comments' . $comment->comment_post_ID, $ID)
+			$configuration['pubsub_node'] . '/comments/' . $comment->comment_post_ID, $ID)
 		&& $xs->quit ()))
 	{
 		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
