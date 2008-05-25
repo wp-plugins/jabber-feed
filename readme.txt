@@ -25,32 +25,24 @@ be no harm! ;-), but I will soon provide far better versions...
 
 == Installation ==
 
-1. Upload the plugin archive to wp-content/plugins/ directory on your
-Wordpress installation;
+1. Upload the plugin archive to wp-content/plugins/ directory on your Wordpress installation;
 2. Uncompress it by keeping it in its own sub-directory called jabber_feed/;
 3. Activate the plugin through the 'Plugins' menu in Wordpress;
-4. Configure the plugin through the appearing sub-menu 'Jabber Feed
-configuration' under the 'Plugins' menu.
+4. Configure the plugin through the appearing sub-menu 'Jabber Feed configuration' under the 'Plugins' menu.
 5. This plugin also defines two templates:
-* jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
-will return a string being a url (bare, or in a 'a' or 'link' tag).
-and
-* jabber_feed_display ($node = 'posts', $what = 'url', $text = '')
-is the same as the previous template but display the string instead of
-returning it!
-This template function can be used in your theme.
-Note that if your theme uses the 'wp_head' function in its header (most
-cases), a autodiscovery link on the post node will be automatically generated
-in the header.
+* `jabber_feed_get ($node = 'posts', $what = 'url', $text = '')` will return a string being a url (bare, or in a 'a' or 'link' tag).
+* `jabber_feed_display ($node = 'posts', $what = 'url', $text = '')` is the same as the previous template but display the string instead of returning it!
+These template functions can be used in your theme.
+Note that if your theme uses the 'wp_head' function in its header (most cases), a autodiscovery link on the post node will be automatically generated in the header. Otherwise, you can add it by yourself with these functions for instance.
 
 == dependencies ==
 
-* PHP must be built with the option '--enable-sockets' on PHP 4 >= 4.0.7 or PHP 5 (though I haven't tried with such a version, with PHP 5.3.0 and more, this extension is moved to the PECL repository!). If you have an error relating to socket, this is most likely a dependency issue.
- Note for gentoo users, you must set the sockets USE flag.
+* PHP must be built with the option `--enable-sockets` on PHP 4 >= 4.0.7 or PHP 5 (though I haven't tried with such a version, with PHP 5.3.0 and more, this extension is moved to the PECL repository!). If you have an error relating to socket, this is most likely a dependency issue.
+Note for gentoo users, you must set the sockets USE flag.
 
-* It uses the library expat to parse XML.
+* It uses the library 'expat' to parse XML.
 
-* It uses the Auth_SASL PEAR module ("pear install Auth_SASL" or install with your distribution's package manager) for SASL authentication. For now, this dependency is mandatory because this is the only supported authentication mechanism. Maybe in some future will it become optional.
+* It uses the 'Auth_SASL PEAR' module ("pear install Auth_SASL" or install with your distribution's package manager) for SASL authentication. For now, this dependency is mandatory because this is the only supported authentication mechanism. Maybe in some future will it become optional.
 
 == Working Platforms ==
 
@@ -61,10 +53,8 @@ Yet if you find a bug or encounter an issue, don't hesitate to tell me, and I wi
 == Features ==
 
 1. Automatically publish posts and/or comments on a Jabber pubsub node;
-2. Add an autodiscovery of the posts node in your website header if your theme
-uses the wp_head function;
-3. Provide 2 templates to get or display addresses to your Jabber publication
-nodes.
+2. Add an autodiscovery of the posts node in your website header if your theme uses the wp_head function;
+3. Provide 2 templates to get or display addresses to your Jabber publication nodes.
 
 == Configuration ==
 
@@ -92,7 +82,7 @@ These are not mandatory fields. The default values will be used if empty.
 * the Jabber server (Often the same as 'myseveraddress' of the jid);
 * the Jabber port (usually 5222).
 
-= The nodes =
+= The node =
 
 Where to publish the notifications. It can be on a separate server.
 

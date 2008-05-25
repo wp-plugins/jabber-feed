@@ -19,8 +19,8 @@
 
 /************************\
 Url of posts publications
-- 'what' can be the bare 'url', or included in a 'a' tag, or a 'link' tag;
 - 'node' can be 'all', 'posts', 'pages', 'comments', 'current' (comments of the current page/post) or a number (comments of the numbered post/page);
+- 'what' can be the bare 'url', or included in a 'a' tag, or a 'link' tag;
 - 'text' is optional displayed text (only when 'a' tag).
 \************************/
 
@@ -51,15 +51,15 @@ function jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
 			if ($node == 'comments')
 				$url .= __('Comments') . " (Jabber)";
 			elseif ($node == 'current')
-				$url .= __('Comments of this entry') . " (Jabber)";
+				$url .= __('Comments of the current entry') . " (Jabber)";
 			elseif ($node == 'pages')
 				$url .= __('Pages') . " (Jabber)";
 			elseif (is_int ($node))
-				$url .= __('Comments of entry ') . $id . " (Jabber)";
+				$url .= __('Comments of entry "') . get_post($id)->post_title . '" (Jabber)';
 			elseif ($node == 'posts' || $node != 'all')
 				$url .= __('Entries') . " (Jabber)";
 			else
-				$url .= __('Entries, pages and comments');
+				$url .= __('Entries, pages and comments') . " (Jabber)";
 		}
 		else
 			$url .= htmlentities ($text);

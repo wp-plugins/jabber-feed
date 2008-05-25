@@ -432,6 +432,8 @@ add_action ('restrict_manage_posts', 'jabber_feed_publish_button');
 // Runs when the template calls the wp_head function.
 // Themes usually call this function. If not, you can do it manually with the Jabber Feed's templates.
 
+// TODO: the autodiscovery may change when on a specific post? (link for the comments of given post only)...
+
 function jabber_feed_header () // {{{
 {
 	jabber_feed_display ('posts', 'link');
