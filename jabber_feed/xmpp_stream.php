@@ -288,6 +288,58 @@ class xmpp_stream // {{{
 			"notification_end_handler", 'published'));
 	} // }}}
 
+function create_leaf ($server, $node) // {{{
+{
+	if (is_leaf ($server, $node)
+		return true;
+	elseif (node_exists ($server, $node))
+		return false;
+	elseif (create_collection ($server, root_node ($node, -1)))
+		return; // real_create;
+	else
+		return false;
+} // }}}
+
+function create_collection ($server, $node) // {{{
+{
+	if (is_collection ($server, $node)
+		return true;
+	elseif (node_exists ($server, $node))
+		return false;
+	elseif (create_collection ($server, root_node ($node, -1)))
+		return; // real_create;
+	else
+		return false;
+} // }}}
+
+function node_exists ($server, $node) // {{{
+{
+	return false;
+} // }}}
+
+function is_collection ($server, $node) // node_type -> return false if not existing, "leaf" and "collection" otherwise! // {{{
+{
+	$query_info = "<iq type='get' from='" . $jid . "' to='" . $server;
+	$query_info .= "' id='info2'><query xmlns='http://jabber.org/protocol/disco#info' node='";
+	$query_info .= $node . "'/></iq>"; // todo: id!!!
+
+	// 1. send query
+	// 2. check return: error -> false, ...
+								      
+	if (! node_exists ($server, $node))
+		return false;
+	else
+		; // test!
+} // }}}
+
+function is_leaf ($server, $node) // {{{
+{
+	if (! node_exists ($server, $node))
+		return false;
+	else
+		; // test!
+} // }}}
+
 // parse data from the socket according to given handlers until $flag is true.
 	private function process_read ($start_element_handler,
 		$end_element_handler, $flag) // {{{
