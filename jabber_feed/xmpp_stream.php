@@ -290,7 +290,7 @@ class xmpp_stream // {{{
 
 function create_leaf ($server, $node) // {{{
 {
-	if (is_leaf ($server, $node)
+	if (is_leaf ($server, $node))
 		return true;
 	elseif (node_exists ($server, $node))
 		return false;
@@ -302,7 +302,7 @@ function create_leaf ($server, $node) // {{{
 
 function create_collection ($server, $node) // {{{
 {
-	if (is_collection ($server, $node)
+	if (is_collection ($server, $node))
 		return true;
 	elseif (node_exists ($server, $node))
 		return false;
