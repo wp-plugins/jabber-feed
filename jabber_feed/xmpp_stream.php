@@ -108,7 +108,8 @@ class xmpp_stream // {{{
 	
 	function quit () // {{{
 	{
-		$this->socket->close ();
+		if (array_key_exists ('connected', $this->flags))
+			$this->socket->close ();
 		unset ($this->flags);
 		return true;
 	} // }}}
@@ -135,9 +136,10 @@ class xmpp_stream // {{{
 
 	function bind () // {{{
 	{
-		if (! array_key_exists ('connected', $this->flags))
+		if (! array_key_exists ('connected', $this->flags)
+			|| ! array_key_exists ('authenticated', $this->flags))
 		{
-			$this->last_error = 'Bind try while not connected';
+			$this->last_error = 'Bind try while not connected or authenticated.';
 			return false;
 		}
 		elseif (array_key_exists ('bound', $this->flags))
@@ -148,7 +150,6 @@ class xmpp_stream // {{{
 			to='" . $this->domain .
 			"' version='1.0'>";
 
-		//$_socket = $this->socket;
 		if (! $this->socket->send ($stream_begin))
 		{
 			$this->last_error = __('Binding failure.') . '<br />';
@@ -156,7 +157,7 @@ class xmpp_stream // {{{
 			$this->quit ();
 			return false;
 		}
-		//elseif (array_key_exists ('bind', $this->features))
+		//elseif (array_key_exists ('bind', $this->features)) // TODO
 			return ($this->process_read ("binding_start_handler",
 				"binding_end_handler", 'bound'));
 		//else
@@ -188,28 +189,32 @@ class xmpp_stream // {{{
 				"session_end_handler", 'session'));
 		}
 		else
-		{
-			$this->last_error = 'Session feature not available on the remote server.';
-			return false;
-		}
+			//$this->last_error = 'Session feature not available on the remote server.';
+			// if the server does not support session, so we just continue without session establishment!
+			return true;
 	} // }}}
 
 	function notify ($server, $node, $id, $title, $link,
 		$content = '', $excerpt = '') // {{{
 	{
 		if (version_compare (phpversion (), '5') == -1)
-			$date = date ('Y-m-d\TH:i:s+Z'); // RFC3339 for PHP4 -> issue with positive timezone offset! TODO
+		{
+			if (intval (date ('Z')) < 0)
+				$date = date ('Y-m-d\TH:i:sZ'); // RFC3339 for PHP4 
+			else
+				$date = date ('Y-m-d\TH:i:s+Z'); 
+		}
 		else
 			$date = date ('c'); // in PHP5 only! ISO 8601 = RFC3339
 
-		$iq_id = time ();
+		$iq_id = time (); // TODO: it is not really random. What if 2 people publishes in the same time?
 		$this->ids['publish'] = 'publish' . $iq_id;
 
 		$message = "<iq type='set' from='" . $this->jid . "' ";
 		$message .= "to='" . $server . "' id='publish" . $iq_id . "'>";
 		$message .= "<pubsub xmlns='http://jabber.org/protocol/pubsub'>";
 		$message .= "<publish node='" . $node;
-		$message .= "'><item id='item" . $id . "'><entry xmlns='http://www.w3.org/2005/Atom'>";
+		$message .= "'><item id='" . $id . "'><entry xmlns='http://www.w3.org/2005/Atom'>";
 		$message .= "<title>" . $title . "</title>";
 		if ($excerpt !== '')
 			$message .= "<summary>" . $excerpt . "</summary>";
@@ -218,6 +223,7 @@ class xmpp_stream // {{{
 			// I use CDATA because '&' are illegal in XML, like in the character entity "&oelig;".
 			// Isn't it a bug to report to ejabberd?
 			//$message .= '<content type="xhtml">' . 'n&oelig;uds de publication' . '</content>';
+			// TODO: in fact, only &amp; is possible! Other must be utf8.
 			$message .= '<content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><![CDATA[' . $content;
 			$message .= ']]></div></content>';
 		}
@@ -226,10 +232,9 @@ class xmpp_stream // {{{
 		$message .= $link . '"/>';
 		$message .= "<id>" . $id . "</id>";
 		$message .= "<published>" . $date . "</published><updated>" . $date . "</updated>";
+		// TODO: what about modified items for 'published' field??
 		$message .= "</entry></item></publish></pubsub></iq>";
 
-		//echo htmlentities ($message); // for test
-		//echo '<br/>';
 		if (! $this->socket->send ($message))
 		{
 			$this->last_error = __('Notification failure.') . '<br />';
@@ -245,7 +250,7 @@ class xmpp_stream // {{{
 	function delete_item ($server, $node, $id) // {{{
 	{
 		$iq_id = time ();
-		$this->ids['publish'] = 'retract' . $iq_id;
+		$this->ids['delete'] = 'retract' . $iq_id;
 
 		$message = "<iq type='set' from='" . $this->jid . "' ";
 		$message .= "to='" . $server . "' id='retract" . $iq_id . "'>";
@@ -255,17 +260,17 @@ class xmpp_stream // {{{
 
 		if (! $this->socket->send ($message))
 		{
-			$this->last_error = __('Notification failure.') . '<br />';
+			$this->last_error = __('Item deletion failure.') . '<br />';
 			$this->last_error .= $this->socket->last_error;
 			$this->quit ();
 			return FALSE;
 		}
 
-		return ($this->process_read ("notification_start_handler",
-			"notification_end_handler", 'published'));
+		return ($this->process_read ("item_deletion_start_handler",
+			"item_deletion_end_handler", 'item_deleted'));
 	} // }}}
 
-	function delete_container ($server, $node, $id) // {{{
+	/*function delete_container ($server, $node, $id) // {{{
 	{
 		$iq_id = time ();
 		$this->ids['delete'] = 'delete' . $iq_id;
@@ -286,59 +291,132 @@ class xmpp_stream // {{{
 
 		return ($this->process_read ("notification_start_handler",
 			"notification_end_handler", 'published'));
+	} // }}} */
+
+	function create_leaf ($server, $node) // {{{
+	{
+		if ($node == '')
+		{
+			$this->last_error = __('Empty node. No instant node supported.') . $node . '".';
+			return false;
+		}
+
+		$node_type = $this->node_type ($server, $node);
+
+		if ($node_type == 'leaf')
+			return true;
+		elseif ($node_type == 'collection')
+		{
+			$this->last_error = __('This node already exists but is a collection node: "') . $node . '".';
+			return false;
+		}
+
+		$subnode = $this->subnode ($node);
+		if ($subnode != false && $this->create_collection ($server, $subnode))
+		{
+			$iq_id = time ();
+			$this->ids['leaf'] = 'create' . $iq_id;
+
+			$message = "<iq type='set' from='" . $this->jid . "' ";
+			$message .= "to='" . $server . "' id='create" . $iq_id . "'>";
+			$message .= "<pubsub xmlns='http://jabber.org/protocol/pubsub'>";
+			$message .= "<create node='" . $node . "'/><configure/>";
+			$message .= "</pubsub></iq>";
+
+			if (! $this->socket->send ($message))
+			{
+				$this->last_error = __('Leaf creation failure:') . '<br />';
+				$this->last_error .= $this->socket->last_error;
+				$this->quit ();
+				return FALSE;
+			}
+
+			return ($this->process_read ("leaf_creation_start_handler",
+				"leaf_creation_end_handler", 'leaf_created'));
+		}
+		else
+			return false;
 	} // }}}
 
-function create_leaf ($server, $node) // {{{
-{
-	if (is_leaf ($server, $node))
-		return true;
-	elseif (node_exists ($server, $node))
-		return false;
-	elseif (create_collection ($server, root_node ($node, -1)))
-		return; // real_create;
-	else
-		return false;
-} // }}}
+	function create_collection ($server, $node) // {{{
+	{
+		if ($node == '')
+		{
+			$this->last_error = __('Empty node. No instant node supported.') . $node . '".';
+			return false;
+		}
 
-function create_collection ($server, $node) // {{{
-{
-	if (is_collection ($server, $node))
-		return true;
-	elseif (node_exists ($server, $node))
-		return false;
-	elseif (create_collection ($server, root_node ($node, -1)))
-		return; // real_create;
-	else
-		return false;
-} // }}}
+		$node_type = $this->node_type ($server, $node);
 
-function node_exists ($server, $node) // {{{
-{
-	return false;
-} // }}}
+		if ($node_type == 'collection')
+			return true;
+		elseif ($node_type == 'leaf')
+		{
+			$this->last_error = __('This node already exists but is a leaf node: "') . $node . '".';
+			return false;
+		}
 
-function is_collection ($server, $node) // node_type -> return false if not existing, "leaf" and "collection" otherwise! // {{{
-{
-	$query_info = "<iq type='get' from='" . $jid . "' to='" . $server;
-	$query_info .= "' id='info2'><query xmlns='http://jabber.org/protocol/disco#info' node='";
-	$query_info .= $node . "'/></iq>"; // todo: id!!!
+		$subnode = $this->subnode ($node);
+		if ($subnode != false && $this->create_collection ($server, $subnode))
+		{
+			$iq_id = time ();
+			$this->ids['collection'] = 'create' . $iq_id;
 
-	// 1. send query
-	// 2. check return: error -> false, ...
-								      
-	if (! node_exists ($server, $node))
-		return false;
-	else
-		; // test!
-} // }}}
+			$message = "<iq type='set' from='" . $this->jid . "' ";
+			$message .= "to='" . $server . "' id='create" . $iq_id . "'>";
+			$message .= "<pubsub xmlns='http://jabber.org/protocol/pubsub'>";
+			$message .= "<create node='" . $node . "'/><configure><x type='submit' xmlns='jabber:x:data'>";
+			$message .= "<field var='FORM_TYPE' type='hidden'><value>http://jabber.org/protocol/pubsub#node_config</value></field>";
+			$message .= "<field var='pubsub#node_type'><value>collection</value></field>";
+			$message .= "</x></configure></pubsub></iq>";
 
-function is_leaf ($server, $node) // {{{
-{
-	if (! node_exists ($server, $node))
-		return false;
-	else
-		; // test!
-} // }}}
+			if (! $this->socket->send ($message))
+			{
+				$this->last_error = __('Collection node creation failure:') . '<br />';
+				$this->last_error .= $this->socket->last_error;
+				$this->quit ();
+				return FALSE;
+			}
+
+			return ($this->process_read ("collection_creation_start_handler",
+				"collection_creation_end_handler", 'collection_created'));
+		}
+		else
+			return false;
+	} // }}}
+
+	function node_type ($server, $node) // return false if not existing, "leaf" and "collection" otherwise! // {{{
+	{
+		$iq_id = time ();
+		$this->ids['node_info'] = 'info' . $iq_id;
+
+		$query_info = "<iq type='get' from='" . $jid . "' to='" . $server . "' id='info" . $iq_id;
+		$query_info .= "'><query xmlns='http://jabber.org/protocol/disco#info' node='";
+		$query_info .= $node . "'/></iq>";
+
+		if (! $this->socket->send ($query_info))
+		{
+			$this->last_error = __('Node information discovery failure:') . '<br />';
+			$this->last_error .= $this->socket->last_error;
+			$this->quit ();
+			return FALSE;
+		}
+
+		$this->process_read ("node_info_start_handler",
+			"node_info_end_handler", 'node_type');
+
+		return $this->flags['node_type'];
+	} // }}}
+
+// this function returns "root1/root2" if you give it "root1/root2/node" and return false if you give ''
+	private function subnode ($node)
+	{
+		if ($node == '' ||$node == '/')
+			return false;
+
+		$pattern = '/^(.*)(/*[^/]+/*)$/';
+		return (preg_replace ($pattern, '${1}', $node, 1));
+	}
 
 // parse data from the socket according to given handlers until $flag is true.
 	private function process_read ($start_element_handler,
@@ -363,16 +441,11 @@ function is_leaf ($server, $node) // {{{
 
 			$data = $this->socket->read ();
 
-			/*if ($data === FALSE)
-			{
-				$this->last_error = $_socket->last_error;
-				break;
-			}*/
 			if (time () - $last_update > $this->timeout)
 			{
 				$this->last_error =  __('Timeout of ') . ' ';
 				$this->last_error .= $this->timeout ;
-				$this->last_error .= ' ' . __('seconds during authentication.');
+				$this->last_error .= ' ' . __('seconds.');
 				break;
 			}
 			elseif (strlen ($data) === 0)
@@ -384,7 +457,7 @@ function is_leaf ($server, $node) // {{{
 					xml_get_current_line_number ($xml_parser));
 				break;
 			}
-			else // data read on the socket and processed!
+			else // data read on the socket and processed in the handlers if needed!
 			{
 				$xmpp_last_update = time ();
 				continue;
@@ -409,7 +482,6 @@ function is_leaf ($server, $node) // {{{
 
 	private function common_start_handler ($name) // {{{
 	{
-		//echo $name . '<br/>';
 		$this->current_cdata = '';
 	} // }}}
 
@@ -417,6 +489,8 @@ function is_leaf ($server, $node) // {{{
 	{
 		return;
 	} // }}}
+
+// Authentication //
 
 	private function authentication_start_handler ($parser, $name, $attrs) // {{{
 	{
@@ -456,6 +530,7 @@ function is_leaf ($server, $node) // {{{
 		}
 		elseif ($name == 'CHALLENGE')
 		{
+			unset ($this->flags['challenged_once']);
 			$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'/>';
 			if (! $this->socket->send ($response))
 			{
@@ -476,7 +551,10 @@ function is_leaf ($server, $node) // {{{
 		elseif ($name == 'STREAM:FEATURES')
 		{
 			if ($this->chosen_mechanism == '')
+			{
+				$this->last_error = __('No compatible authentication mechanism');
 				$this->must_close = true;
+			}
 			else
 			{
 				$mechanism = '<auth xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'';
@@ -489,15 +567,28 @@ function is_leaf ($server, $node) // {{{
 
 	} // }}}
 
+// Binding Resource //
+
 	private function binding_start_handler ($parser, $name, $attrs) // {{{
 	{
 		if ($name == 'STREAM:FEATURES')
 			$this->flags['features'] = true;
 		elseif ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['bind'] == $attrs['ID'])
+		{
+			unset ($this->ids['bind']);
 			$this->flags['resource'] = true;
+		}
 		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['bind'] == $attrs['ID'])
+		{
+			unset ($this->ids['bind']);
+			$this->flags['resource_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('resource_error', $this->flags))
+		{
+			unset ($this->flags['resource_error']);
+			$this->last_error = __('Resource binding returned an error of type "') . $attrs['TYPE'] . '".';
 			$this->must_close = true;
-			
+		}
 		$this->common_start_handler ($name);
 	} // }}}
 
@@ -513,10 +604,18 @@ function is_leaf ($server, $node) // {{{
 				$message = "<iq type='set' id='" . $id . "'><bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>";
 				$message .= "<resource>" . $this->resource . $id . "</resource></bind></iq>";
 				$this->ids['bind'] = $id;
-				$this->socket->send ($message);
+				if (! $this->socket->send ($message))
+				{
+					$this->last_error = __('Failure during binding.') . '<br />';
+					$this->last_error .= $this->socket->last_error;
+					$this->must_close = true;
+				}
 			}
 			else 
+			{
+				$this->last_error = __('Bind feature not available.');
 				$this->must_close = true;
+			}
 		}
 		elseif (array_key_exists ('features', $this->flags))
 			$this->features[$name] = true;
@@ -527,15 +626,28 @@ function is_leaf ($server, $node) // {{{
 			unset ($this->flags['resource']);
 			$this->flags['bound'] = true;
 		}
-
 	} // }}}
+
+// Session //
 
 	private function session_start_handler ($parser, $name, $attrs) // {{{
 	{
 		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['session'] == $attrs['ID'])
+		{
+			unset ($this->ids['session']);
 			$this->flags['session'] = true;
+		}
 		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['session'] == $attrs['ID'])
+		{
+			unset ($this->ids['session']);
+			$this->flags['session_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('session_error', $this->flags))
+		{
+			unset ($this->flags['session_error']);
+			$this->last_error = __('Session establishment returned an error of type "') . $attrs['TYPE'] . '".';
 			$this->must_close = true;
+		}
 			
 		$this->common_start_handler ($name);
 	} // }}}
@@ -545,17 +657,163 @@ function is_leaf ($server, $node) // {{{
 		$this->common_end_handler ();
 	} // }}}
 
+// Pubsub Notification //
+
 	private function notification_start_handler ($parser, $name, $attrs) // {{{
 	{
 		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['publish'] == $attrs['ID'])
+		{
+			unset ($this->ids['publish']);
 			$this->flags['published'] = true;
+		}
 		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['publish'] == $attrs['ID'])
+		{
+			unset ($this->ids['publish']);
+			$this->flags['publish_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('publish_error', $this->flags))
+		{
+			unset ($this->flags['publish_error']);
+			$this->last_error = __('Publication returned an error of type "') . $attrs['TYPE'] . '".';
 			$this->must_close = true;
+		}
+
 		$this->common_start_handler ($name);
 	} // }}}
 	
 	private function notification_end_handler () // {{{
 	{
+		$this->common_end_handler ();
+	} // }}}
+
+// Item deletion //
+
+	private function item_deletion_start_handler ($parser, $name, $attrs) // {{{
+	{
+		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['delete'] == $attrs['ID'])
+		{
+			unset ($this->ids['delete']);
+			$this->flags['item_deleted'] = true;
+		}
+		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['delete'] == $attrs['ID'])
+		{
+			unset ($this->ids['delete']);
+			$this->flags['item_deletion_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('item_deletion_error', $this->flags))
+		{
+			unset ($this->flags['item_deletion_error']);
+			$this->last_error = __('Item deletion returned an error of type "') . $attrs['TYPE'] . '".';
+			$this->must_close = true;
+		}
+
+		$this->common_start_handler ($name);
+	} // }}}
+	
+	private function item_deletion_end_handler () // {{{
+	{
+		$this->common_end_handler ();
+	} // }}}
+
+// Leaf node creation //
+
+	private function leaf_creation_start_handler ($parser, $name, $attrs) // {{{
+	{
+		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['leaf'] == $attrs['ID'])
+		{
+			unset ($this->ids['leaf']);
+			$this->flags['leaf_created'] = true;
+		}
+		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['leaf'] == $attrs['ID'])
+		{
+			unset ($this->ids['leaf']);
+			$this->flags['leaf_creation_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('leaf_creation_error', $this->flags))
+		{
+			unset ($this->flags['leaf_creation_error']);
+			$this->last_error = __('Leaf node creation returned an error of type "') . $attrs['TYPE'] . '".';
+			$this->must_close = true;
+		}
+
+		$this->common_start_handler ($name);
+	} // }}}
+	
+	private function leaf_creation_end_handler () // {{{
+	{
+		$this->common_end_handler ();
+	} // }}}
+
+// Collection node creation //
+
+	private function collection_creation_start_handler ($parser, $name, $attrs) // {{{
+	{
+		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['collection'] == $attrs['ID'])
+		{
+			unset ($this->ids['collection']);
+			$this->flags['collection_created'] = true;
+		}
+		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['collection'] == $attrs['ID'])
+		{
+			unset ($this->ids['collection']);
+			$this->flags['collection_creation_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('collection_creation_error', $this->flags))
+		{
+			unset ($this->flags['collection_creation_error']);
+			$this->last_error = __('Collection node creation returned an error of type "') . $attrs['TYPE'] . '".';
+			$this->must_close = true;
+		}
+
+		$this->common_start_handler ($name);
+	} // }}}
+	
+	private function collection_creation_end_handler () // {{{
+	{
+		$this->common_end_handler ();
+	} // }}}
+
+// Node information discovery //
+
+	private function node_info_start_handler ($parser, $name, $attrs) // {{{
+	{
+		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['node_info'] == $attrs['ID'])
+		{
+			unset ($this->ids['node_info']);
+			$this->flags['node_info_success'] = true;
+		}
+		elseif ($name == 'IDENTITY' && array_key_exists ('node_info_success', $this->flags))
+			$this->flags['node_identity'] = $attrs['TYPE'];
+		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['node_info'] == $attrs['ID'])
+		{
+			unset ($this->ids['node_info']);
+			$this->flags['node_info_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('node_info_error', $this->flags))
+			$this->last_error = __('Node information discovery returned an error of type "') . $attrs['TYPE'] . '".';
+
+		$this->common_start_handler ($name);
+	} // }}}
+	
+	private function node_info_end_handler () // {{{
+	{
+		if ($name == 'IQ' && array_key_exists ('node_info_error', $this->flags))
+		{
+			unset ($this->flags['node_info_error']);
+			$this->must_close = true;
+		}
+		elseif ($name == 'IQ' && array_key_exists ('node_info_success', $this->flags))
+		{
+			unset ($this->flags['node_info_success']);
+			if (array_key_exists ('node_identity', $this->flags))
+			{
+				$this->flags['node_type'] = $this->flags['node_identity'];
+				unset ($this->flags['node_identity']);
+			}
+			else
+				$this->flags['node_type'] = false;
+		}
+
 		$this->common_end_handler ();
 	} // }}}
 } // }}}

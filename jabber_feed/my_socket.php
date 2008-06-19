@@ -38,7 +38,7 @@ class my_socket // {{{
 	{
 		$address = gethostbyname ($this->server);
 		$self_address = gethostbyname (parse_url (get_bloginfo ('url'), PHP_URL_HOST));
-		// TODO: replace get_bloginfo by a portable function!
+		// TODO: replace get_bloginfo by a portable function! This is a Wordpress' one.
 
 		$_socket = socket_create (AF_INET, SOCK_STREAM, SOL_TCP);
 		if ($_socket === false)
@@ -103,8 +103,7 @@ class my_socket // {{{
 			return socket_read ($this->socket, 4096, PHP_BINARY_READ);
 		else
 		{
-			$this->last_error = __('Error during a read.') . '<br />';
-			$this->last_error .= socket_strerror (socket_last_error ($_socket));
+			$this->last_error = __('Trying to read in a null socket.');
 			return FALSE;
 		}
 	} // }}}
@@ -113,8 +112,7 @@ class my_socket // {{{
 	{
 		if ($this->socket == null)
 		{
-			$this->last_error = __('Error during a data sent.') . '<br />';
-			$this->last_error .= socket_strerror (socket_last_error ($_socket));
+			$this->last_error = __('Trying to write in a null socket.');
 			return FALSE;
 		}
 
