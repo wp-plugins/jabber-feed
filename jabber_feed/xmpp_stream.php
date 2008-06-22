@@ -197,6 +197,9 @@ class xmpp_stream // {{{
 	function notify ($server, $node, $id, $title, $link,
 		$content = '', $excerpt = '') // {{{
 	{
+		if (! create_leaf ($server, $node))
+			return false;
+			
 		if (version_compare (phpversion (), '5') == -1)
 		{
 			if (intval (date ('Z')) < 0)
@@ -435,7 +438,7 @@ class xmpp_stream // {{{
 				break;
 			elseif ($this->must_close) // semantic error
 			{
-				$this->last_error = __('Unexpected error.');
+				$this->last_error = __('Unexpected error: ') . $this->last_error;
 				break;
 			}
 

@@ -8,7 +8,7 @@ Author: Jehan Hysseo
 Author URI: http://jehan.zemarmot.net
 */
 
-/*  Copyright 2008 Jehan Hysseo  (email : jehan at zemarmot.net)
+/*  Copyright 2008 Jehan Hysseo  (email : jehan at zemarmot.net) {{{
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ Author URI: http://jehan.zemarmot.net
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA }}}
 */
 
 require_once(dirname(__FILE__) . '/xmpp_stream.php');
@@ -48,13 +48,14 @@ function xmpp_publish_post ($post_ID) // {{{
 	$feed_content = $post->post_content;
 	$feed_excerpt = $post->post_excerpt;
 	$link = $post->guid;
-	$id = $post_ID . '_' . $post->post_name;
+	//$id = $post_ID . '_' . $post->post_name;
+	$id = $post_ID;
 
 	$xs = new xmpp_stream ($configuration['node'],
 		$configuration['domain'], $configuration['password'],
 		'bot', $configuration['server'], $configuration['port']);
 	
-	$history = get_option('jabber_feed_history');
+	$history = get_option('jabber_feed_post_history');
 
 	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
 		&& $xs->session_establish ()
@@ -69,12 +70,16 @@ function xmpp_publish_post ($post_ID) // {{{
 	}
 	else
 	{
-		if (array_key_exists ($post_ID, $history) && ! array_key_exists ('error', $history[$post_ID]))
+		if (array_key_exists ($post_ID, $history))
 			$history[$post_ID]['updated'] = date ('c');
 		else
 			$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+			
+		if (array_key_exists ('error', $history[$post_ID]))
+			unset ($history['$post_ID']['error']);
+
 	}
-	update_option('jabber_feed_history', $history);
+	update_option('jabber_feed_post_history', $history);
 
 	return $post_ID;
 } // }}}
@@ -82,9 +87,9 @@ function xmpp_publish_post ($post_ID) // {{{
 function xmpp_delete_post_page ($ID) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
-	$history = get_option('jabber_feed_history');
+	$history = get_option('jabber_feed_post_history');
 
-	if (empty ($configuration['publish_posts']) || ! array_key_exists ($id, $history) || array_key_exists ('error', $history[$id]))
+	if (empty ($configuration['publish_posts']) || ! array_key_exists ($ID, $history) || array_key_exists ('error', $history[$ID]))
 		return $ID;
 
 	$xs = new xmpp_stream ($configuration['node'],
@@ -104,7 +109,7 @@ function xmpp_delete_post_page ($ID) // {{{
 	{
 			unset ($history[$ID]);
 	}
-	update_option('jabber_feed_history', $history);
+	update_option('jabber_feed_post_history', $history);
 
 	return $ID;
 } // }}}
@@ -127,7 +132,7 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 		$post = get_post ($comment->comment_post_ID, OBJECT);
 		$post_title = $post->post_title;
 		$comment_author = $comment->comment_author;
-		$feed_title = '[' . $blog_title . "]" . $post_title . " (commenter: " . $comment_author . ')';
+		$feed_title = '[' . $blog_title . "] " . $post_title . " (commenter: " . $comment_author . ')';
 		$feed_content = $comment->comment_content;
 		$link = $post->guid;
 		$id = $comment_ID;
@@ -138,20 +143,36 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 		
 		// Must check whether container already exists and create it otherwise!
 
+		$history = get_option('jabber_feed_comment_history');
+
 		if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
 			&& $xs->session_establish ()
 			&& $xs->notify ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/comments/' . $post->ID, $id, $feed_title,
-				$link, $feed_content, '')
+				$link, $feed_content)
 			&& $xs->quit ()))
 		{
-			echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
-			echo $xs->last_error . '</p></div>';
+			//echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
+			//echo $xs->last_error . '</p></div>';
+			$history[$id] = array ('error' => $xs->last_error);
+		}
+		else
+		{
+			if (array_key_exists ($id, $history))
+				$history[$id]['updated'] = date ('c');
+			else
+				$history[$id] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+				
+			if (array_key_exists ('error', $history[$post_ID]))
+				unset ($history['$post_ID']['error']);
 		}
 	}
 
+	update_option('jabber_feed_comment_history', $history);
 	return $comment_ID;
 } // }}}
+
+// TODO: history for comments
 
 function xmpp_delete_comment ($comment_ID) // {{{
 {
@@ -169,13 +190,16 @@ function xmpp_delete_comment ($comment_ID) // {{{
 	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
 		&& $xs->session_establish ()
 		&& $xs->delete_item ($configuration['pubsub_server'],
-			$configuration['pubsub_node'] . '/comments/' . $comment->comment_post_ID, $ID)
+			$configuration['pubsub_node'] . '/comments/' . $comment->comment_post_ID, $comment_ID)
 		&& $xs->quit ()))
 	{
 		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
 		echo $xs->last_error . '</p></div>';
 	}
+	else
+			unset ($history[$id]);
 
+	update_option('jabber_feed_comment_history', $history);
 	return $comment_ID;
 } // }}}
 
@@ -187,7 +211,8 @@ add_action ('delete_comment', 'xmpp_delete_comment');
 \**********************/
 
 add_option('jabber_feed_configuration', array (), 'Configuration of the Jabber Feed plugin', 'yes');
-add_option ('jabber_feed_history', array (), 'All information about fed posts, successes and failures', 'yes');
+add_option ('jabber_feed_post_history', array (), 'All information about fed posts and pages, successes and failures', 'yes');
+add_option ('jabber_feed_comment_history', array (), 'All information about fed comments, successes and failures', 'yes');
 
 function jabber_feed_configuration_page () // {{{
 {
@@ -229,9 +254,8 @@ function jabber_feed_configuration_page () // {{{
 	//now we drop into html to display the option page form
 	?>
 	<div class="wrap">
-		<?php $history = get_option('jabber_feed_history');
+		<?php $history = get_option('jabber_feed_post_history');
 		print_r ($history); // for tests!
-		//echo $history[87];
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
 		<form method="post" action="">
@@ -394,7 +418,7 @@ function jabber_feed_custom_column ($column, $id) // {{{
 {
 	if ($column == 'jabber_feed')
 	{
-		$history = get_option('jabber_feed_history');
+		$history = get_option('jabber_feed_post_history');
 		if (array_key_exists ($id, $history))
 		{
 			if (array_key_exists ('error', $history[$id]))
@@ -436,7 +460,10 @@ add_action ('restrict_manage_posts', 'jabber_feed_publish_button');
 
 function jabber_feed_header () // {{{
 {
-	jabber_feed_display ('posts', 'link');
+	if (is_single ())
+		jabber_feed_display ('current', 'link');
+	else
+		jabber_feed_display ('posts', 'link');
 } // }}}
 
 add_action ('wp_head', 'jabber_feed_header');

@@ -26,7 +26,7 @@ Url of posts publications
 
 function jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
 {
-	global $id;
+	global $post;
 	$configuration = get_option ('jabber_feed_configuration');
 	
 	$url = "xmpp:" . $configuration['pubsub_server'] . "?action=subscribe;node=";
@@ -37,7 +37,7 @@ function jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
 	elseif ($node == 'pages')
 		$url .= '/pages';
 	elseif ($node == 'current')
-		$url .= '/comments/' . $id;
+		$url .= '/comments/' . $post->ID;
 	elseif (is_int ($node))
 		$url .= '/comments/' . $node;
 	elseif ($node == 'posts' || $node != 'all')
