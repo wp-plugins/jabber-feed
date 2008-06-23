@@ -210,7 +210,7 @@ class xmpp_stream // {{{
 		else
 			$date = date ('c'); // in PHP5 only! ISO 8601 = RFC3339
 
-		$iq_id = time (); // TODO: it is not really random. What if 2 people publishes in the same time?
+		$iq_id = time () . rand (); // Is it random enough? Probably for such use...
 		$this->ids['publish'] = 'publish' . $iq_id;
 
 		$message = "<iq type='set' from='" . $this->jid . "' ";
@@ -317,6 +317,7 @@ class xmpp_stream // {{{
 		$subnode = $this->subnode ($node);
 		if ($subnode != false && $this->create_collection ($server, $subnode))
 		{
+			unset ($this->flags['collection_created']);
 			$iq_id = time ();
 			$this->ids['leaf'] = 'create' . $iq_id;
 
@@ -362,6 +363,7 @@ class xmpp_stream // {{{
 		$subnode = $this->subnode ($node);
 		if ($subnode != false && $this->create_collection ($server, $subnode))
 		{
+			unset ($this->flags['collection_created']);
 			$iq_id = time ();
 			$this->ids['collection'] = 'create' . $iq_id;
 
@@ -412,14 +414,19 @@ class xmpp_stream // {{{
 	} // }}}
 
 // this function returns "root1/root2" if you give it "root1/root2/node" and return false if you give ''
-	private function subnode ($node)
+	private function subnode ($node) // {{{
 	{
-		if ($node == '' ||$node == '/')
+		$pattern_root = '/^\/*$/';
+		if (preg_match ($pattern_root, $node) == 0)
 			return false;
 
-		$pattern = '/^(.*)(/*[^/]+/*)$/';
+		$pattern_root = '/^\/*[^\/]+\/*$/';
+		if (preg_match ($pattern_root, $node) == 0)
+			return '/';
+
+		$pattern = '/^(.+[^\/])(\/+[^\/]+\/*)$/';
 		return (preg_replace ($pattern, '${1}', $node, 1));
-	}
+	} // }}}
 
 // parse data from the socket according to given handlers until $flag is true.
 	private function process_read ($start_element_handler,
@@ -546,6 +553,7 @@ class xmpp_stream // {{{
 		elseif ($name == 'FAILURE' || $name == 'STREAM:STREAM')
 		{
 			$this->socket->send ('</stream:stream>');
+			$this->last_error = __('Authentication failure: wrong username or password.') . '<br />';
 			$this->must_close = true;;
 			return;
 		}

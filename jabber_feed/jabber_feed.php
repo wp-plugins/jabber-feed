@@ -241,10 +241,28 @@ function jabber_feed_configuration_page () // {{{
 		$configuration['publish_comments'] = strip_tags (trim($_POST['publish_comments']));
 		$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
 
-		update_option('jabber_feed_configuration', $configuration);
-
-		// Aknowledge the save.
-		echo '<div class="updated"><p>' . __('Configuration saved') . '</p></div>';
+		// TODO: now I test the connection, then I create the necessary nodes. If all is ok, then ok. Else.
+		$xs = new xmpp_stream ($configuration['node'],
+			$configuration['domain'], $configuration['password'],
+			'bot', $configuration['server'], $configuration['port']);
+		
+		if ($xs->connect () && $xs->authenticate () && $xs->bind ()
+			&& $xs->session_establish ()
+			&& $xs->create_leaf ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/posts')
+			&& $xs->create_leaf ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/comments')
+			&& $xs->create_leaf ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/pages')
+			&& $xs->quit ())
+		{
+			update_option('jabber_feed_configuration', $configuration);
+			// Aknowledge the save.
+			echo '<div class="updated"><p>' . __('Configuration saved') . '</p></div>';
+		}
+		else
+			echo '<div class="updated"><p>' . __('Configuration not saved. The following error occured: ') . $xs->last_error . '</p></div>';
+			
 	}
 	else
 	{
@@ -255,7 +273,7 @@ function jabber_feed_configuration_page () // {{{
 	?>
 	<div class="wrap">
 		<?php $history = get_option('jabber_feed_post_history');
-		print_r ($history); // for tests!
+		//print_r ($history); // for tests!
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
 		<form method="post" action="">
@@ -376,6 +394,10 @@ function jabber_feed_configuration_page () // {{{
 				<input type="submit"
 					name="update_configuration"
 					value="<?php _e('Update') ?>"
+					style="font-weight:bold;" />
+				<input type="submit"
+					name="reset_configuration"
+					value="<?php _e('Reset') ?>"
 					style="font-weight:bold;" />
 			</div>
 		</form>    		
