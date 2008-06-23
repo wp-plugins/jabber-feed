@@ -248,9 +248,9 @@ function jabber_feed_configuration_page () // {{{
 		
 		if ($xs->connect () && $xs->authenticate () && $xs->bind ()
 			&& $xs->session_establish ()
-			/*&& $xs->create_leaf ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/posts')
 			&& $xs->create_leaf ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/posts')
+			/* && $xs->create_leaf ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/comments')
 			&& $xs->create_leaf ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/pages') */

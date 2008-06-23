@@ -304,6 +304,7 @@ class xmpp_stream // {{{
 			return false;
 		}
 
+		unset ($this->flags['node_type']);
 		$node_type = $this->node_type ($server, $node);
 
 		if ($node_type == 'leaf')
@@ -315,9 +316,11 @@ class xmpp_stream // {{{
 		}
 
 		$subnode = $this->subnode ($node);
-		if ($subnode != false && $this->create_collection ($server, $subnode))
+		unset ($this->flags['collection_created']);
+		if ($subnode == false || $this->create_collection ($server, $subnode))
 		{
 			unset ($this->flags['collection_created']);
+			unset ($this->flags['leaf_created']);
 			$iq_id = time ();
 			$this->ids['leaf'] = 'create' . $iq_id;
 
@@ -350,6 +353,7 @@ class xmpp_stream // {{{
 			return false;
 		}
 
+		unset ($this->flags['node_type']);
 		$node_type = $this->node_type ($server, $node);
 
 		if ($node_type == 'collection')
@@ -361,7 +365,8 @@ class xmpp_stream // {{{
 		}
 
 		$subnode = $this->subnode ($node);
-		if ($subnode != false && $this->create_collection ($server, $subnode))
+		unset ($this->flags['collection_created']);
+		if ($subnode == false || $this->create_collection ($server, $subnode))
 		{
 			unset ($this->flags['collection_created']);
 			$iq_id = time () . rand ();
@@ -417,12 +422,12 @@ class xmpp_stream // {{{
 	private function subnode ($node) // {{{
 	{
 		$pattern_root = '/^\/*$/';
-		if (preg_match ($pattern_root, $node) == 0)
+		if (preg_match ($pattern_root, $node) == 1)
 			return false;
 
-		$pattern_root = '/^\/*[^\/]+\/*$/';
-		if (preg_match ($pattern_root, $node) == 0)
-			return '/';
+		$pattern_first_level = '/^\/*[^\/]+\/*$/';
+		if (preg_match ($pattern_first_level, $node) == 1)
+			return false;
 
 		$pattern = '/^(.+[^\/])(\/+[^\/]+\/*)$/';
 		return (preg_replace ($pattern, '${1}', $node, 1));
