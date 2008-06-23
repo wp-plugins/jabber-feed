@@ -364,7 +364,7 @@ class xmpp_stream // {{{
 		if ($subnode != false && $this->create_collection ($server, $subnode))
 		{
 			unset ($this->flags['collection_created']);
-			$iq_id = time ();
+			$iq_id = time () . rand ();
 			$this->ids['collection'] = 'create' . $iq_id;
 
 			$message = "<iq type='set' from='" . $this->jid . "' ";
@@ -392,7 +392,7 @@ class xmpp_stream // {{{
 
 	function node_type ($server, $node) // return false if not existing, "leaf" and "collection" otherwise! // {{{
 	{
-		$iq_id = time ();
+		$iq_id = time () . rand ();
 		$this->ids['node_info'] = 'info' . $iq_id;
 
 		$query_info = "<iq type='get' from='" . $jid . "' to='" . $server . "' id='info" . $iq_id;

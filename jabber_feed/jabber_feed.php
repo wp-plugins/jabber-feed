@@ -248,12 +248,12 @@ function jabber_feed_configuration_page () // {{{
 		
 		if ($xs->connect () && $xs->authenticate () && $xs->bind ()
 			&& $xs->session_establish ()
-			&& $xs->create_leaf ($configuration['pubsub_server'],
+			/*&& $xs->create_leaf ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/posts')
 			&& $xs->create_leaf ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/comments')
 			&& $xs->create_leaf ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/pages')
+				$configuration['pubsub_node'] . '/pages') */
 			&& $xs->quit ())
 		{
 			update_option('jabber_feed_configuration', $configuration);
@@ -261,18 +261,17 @@ function jabber_feed_configuration_page () // {{{
 			echo '<div class="updated"><p>' . __('Configuration saved') . '</p></div>';
 		}
 		else
-			echo '<div class="updated"><p>' . __('Configuration not saved. The following error occured: ') . $xs->last_error . '</p></div>';
+			echo '<div class="updated"><p>' . __('Configuration not saved.<br />The following error occured: ') . $xs->last_error . '</p></div>';
 			
 	}
 	else
-	{
-		// If we are just displaying the page we first load up the options array
+		// If we are just displaying the page or if we reset to last saved config, we first load up the options array.
 		$configuration = get_option('jabber_feed_configuration');
-	}
-	//now we drop into html to display the option page form
+
+	//now we drop into html to display the option page form.
 	?>
 	<div class="wrap">
-		<?php $history = get_option('jabber_feed_post_history');
+		<?php //$history = get_option('jabber_feed_post_history');
 		//print_r ($history); // for tests!
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
@@ -398,7 +397,7 @@ function jabber_feed_configuration_page () // {{{
 				<input type="submit"
 					name="reset_configuration"
 					value="<?php _e('Reset') ?>"
-					style="font-weight:bold;" />
+					style="font-weight:bold;font-style:italic" />
 			</div>
 		</form>    		
 	</div>
