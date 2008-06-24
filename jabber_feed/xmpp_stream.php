@@ -51,14 +51,12 @@ class xmpp_stream // {{{
 		//, 'PLAIN' => 4);
 	private $chosen_mechanism = '';
 
-	private $must_close = false;
 	private $current_cdata = '';
 	private $features = array ();
 	private $ids = array ();
 
 	// FLAGS //
 	private $flags = array ();
-	//private $flag_process = false;
 
 	function __construct ($node, $domain, $password, $resource = 'bot',
 		$server = '', $port = 5222) // {{{
@@ -187,8 +185,8 @@ class xmpp_stream // {{{
 	function notify ($server, $node, $id, $title, $link,
 		$content = '', $excerpt = '') // {{{
 	{
-		//if (! $this->create_leaf ($server, $node))
-		//	return false;
+		if (! $this->create_leaf ($server, $node))
+			return false;
 			
 		if (version_compare (phpversion (), '5') == -1)
 		{
@@ -524,7 +522,6 @@ class xmpp_stream // {{{
 				$this->last_error = __('Authentication failure: ');
 				$this->last_error .= $_socket->last_error;
 				$this->flags['authenticated'] = false;
-				//$this->must_close = true;
 				return;
 			}
 			
@@ -558,7 +555,6 @@ class xmpp_stream // {{{
 			{
 				$this->last_error = __('No compatible authentication mechanism.');
 				$this->flags['authenticated'] = false;
-				//$this->must_close = true;
 			}
 			else
 			{
@@ -593,7 +589,6 @@ class xmpp_stream // {{{
 			unset ($this->flags['resource_error']);
 			$this->last_error = __('Resource binding returned an error of type "') . $attrs['TYPE'] . '".';
 			$this->flags['bound'] = false;
-			//$this->must_close = true;
 		}
 		$this->common_start_handler ($name);
 	} // }}}
@@ -615,14 +610,12 @@ class xmpp_stream // {{{
 					$this->last_error = __('Failure during binding.') . '<br />';
 					$this->last_error .= $this->socket->last_error;
 					$this->flags['bound'] = false;
-					//$this->must_close = true;
 				}
 			}
 			else 
 			{
 				$this->last_error = __('Bind feature not available.');
 				$this->flags['bound'] = false;
-				//$this->must_close = true;
 			}
 		}
 		elseif (array_key_exists ('features', $this->flags))
@@ -689,7 +682,6 @@ class xmpp_stream // {{{
 			unset ($this->flags['publish_error']);
 			$this->last_error = __('Publication returned an error of type "') . $attrs['TYPE'] . '".';
 			$this->flags['published'] = false;
-			//$this->must_close = true;
 		}
 
 		$this->common_start_handler ($name);
@@ -719,7 +711,6 @@ class xmpp_stream // {{{
 			unset ($this->flags['item_deletion_error']);
 			$this->last_error = __('Item deletion returned an error of type "') . $attrs['TYPE'] . '".';
 			$this->flags['item_deleted'] = false;
-			//$this->must_close = true;
 		}
 
 		$this->common_start_handler ($name);

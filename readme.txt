@@ -178,6 +178,13 @@ answering to a post by directly publishing to the node?
 But how is a publisher identified?! No "from" with a pseudo in it, and data
 about real jid accessible from admin.
 
+* Add xmtml-im support for the messages sent. Anyway improve globally the
+message syntax (for instance the message 'updated' and 'created' tags).
+
+* Configure the node instead of simply create it with default configuration.
+
+* Check the node authorizations if it is already existing.
+
 == Contacts ==
 
 You can have some news about this plugin on [my freedom haven](http://jehan.zemarmot.net "my public diary") or of course, soon by subscribing on a xmpp pubsub node.
