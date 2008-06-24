@@ -185,6 +185,12 @@ message syntax (for instance the message 'updated' and 'created' tags).
 
 * Check the node authorizations if it is already existing.
 
+* Improve the internationalization strings (and set at least 2 default
+languages: English and French).
+
+* And what if the post or page is private? Should it be added on a node? Maybe
+a node with a white list that the admin can manage?
+
 == Contacts ==
 
 You can have some news about this plugin on [my freedom haven](http://jehan.zemarmot.net "my public diary") or of course, soon by subscribing on a xmpp pubsub node.
