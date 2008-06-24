@@ -100,7 +100,11 @@ class my_socket // {{{
 	function read () // {{{
 	{
 		if ($this->socket != null)
-			return socket_read ($this->socket, 4096, PHP_BINARY_READ);
+		{
+			return socket_read ($this->socket, 200, PHP_BINARY_READ);
+			//socket_recvfrom ($this->socket, $buf, 2000, MSG_DONTWAIT);
+			//return $buf;
+		}
 		else
 		{
 			$this->last_error = __('Trying to read in a null socket.');

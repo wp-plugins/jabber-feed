@@ -48,7 +48,6 @@ function xmpp_publish_post ($post_ID) // {{{
 	$feed_content = $post->post_content;
 	$feed_excerpt = $post->post_excerpt;
 	$link = $post->guid;
-	//$id = $post_ID . '_' . $post->post_name;
 	$id = $post_ID;
 
 	$xs = new xmpp_stream ($configuration['node'],
@@ -57,14 +56,14 @@ function xmpp_publish_post ($post_ID) // {{{
 	
 	$history = get_option('jabber_feed_post_history');
 
-	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
-		&& $xs->session_establish ()
+	if (! ($xs->log ()
 		&& $xs->notify ($configuration['pubsub_server'],
 			$configuration['pubsub_node'] . '/posts', $id, $feed_title,
 			$link, $feed_content, $feed_excerpt)
+		 && $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments' . $id)
 		&& $xs->quit ()))
 	{
-		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
+		echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
 		echo $xs->last_error . '</p></div>';
 		$history[$post_ID] = array ('error' => $xs->last_error);
 	}
@@ -96,8 +95,7 @@ function xmpp_delete_post_page ($ID) // {{{
 		$configuration['domain'], $configuration['password'],
 		'bot', $configuration['server'], $configuration['port']);
 	
-	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
-		&& $xs->session_establish ()
+	if (! ($xs->log ()
 		&& $xs->delete_item ($configuration['pubsub_server'],
 			$configuration['pubsub_node'] . '/posts', $history[$ID]['id'])
 		&& $xs->quit ()))
@@ -145,17 +143,12 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 
 		$history = get_option('jabber_feed_comment_history');
 
-		if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
-			&& $xs->session_establish ()
+		if (! ($xs->log ()
 			&& $xs->notify ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/comments/' . $post->ID, $id, $feed_title,
 				$link, $feed_content)
 			&& $xs->quit ()))
-		{
-			//echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
-			//echo $xs->last_error . '</p></div>';
 			$history[$id] = array ('error' => $xs->last_error);
-		}
 		else
 		{
 			if (array_key_exists ($id, $history))
@@ -187,8 +180,7 @@ function xmpp_delete_comment ($comment_ID) // {{{
 		$configuration['domain'], $configuration['password'],
 		'bot', $configuration['server'], $configuration['port']);
 	
-	if (! ($xs->connect () && $xs->authenticate () && $xs->bind ()
-		&& $xs->session_establish ()
+	if (! ($xs->log ()
 		&& $xs->delete_item ($configuration['pubsub_server'],
 			$configuration['pubsub_node'] . '/comments/' . $comment->comment_post_ID, $comment_ID)
 		&& $xs->quit ()))
@@ -246,22 +238,24 @@ function jabber_feed_configuration_page () // {{{
 			$configuration['domain'], $configuration['password'],
 			'bot', $configuration['server'], $configuration['port']);
 		
-		if ($xs->connect () && $xs->authenticate () && $xs->bind ()
+		/*if ($xs->connect () && $xs->authenticate () && $xs->bind ()
 			&& $xs->session_establish ()
 			&& $xs->create_leaf ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/posts')
+				$configuration['pubsub_node'] . '/posts')*/
 			/* && $xs->create_leaf ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/comments')
 			&& $xs->create_leaf ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/pages') */
+		if ($xs->log ()
+			&& $xs->create_leaf ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/posts')
 			&& $xs->quit ())
 		{
 			update_option('jabber_feed_configuration', $configuration);
-			// Aknowledge the save.
 			echo '<div class="updated"><p>' . __('Configuration saved') . '</p></div>';
 		}
 		else
-			echo '<div class="updated"><p>' . __('Configuration not saved.<br />The following error occured: ') . $xs->last_error . '</p></div>';
+			echo '<div class="updated"><p>' . __('Configuration not saved. The following error occured:<br />') . $xs->last_error . '</p></div>';
 			
 	}
 	else

@@ -37,6 +37,8 @@ class xmpp_stream // {{{
 	public $port = '';
 	private $socket = null;
 
+	private $logged = false;
+
 	// If nothing happens on the stream after 5 seconds, I shutdown.
 	private $timeout = 5;
 	public $last_error = '';
@@ -56,6 +58,7 @@ class xmpp_stream // {{{
 
 	// FLAGS //
 	private $flags = array ();
+	//private $flag_process = false;
 
 	function __construct ($node, $domain, $password, $resource = 'bot',
 		$server = '', $port = 5222) // {{{
@@ -87,34 +90,38 @@ class xmpp_stream // {{{
 
 	// All these functions return false when the operation did not succeed.
 
-	function connect () // {{{
+	function log () // {{{
 	{
-		if (array_key_exists ('connected', $this->flags))
-			return true;
+		if (!$this->logged && $this->connect () && $this->authenticate () && $this->bind () && $this->session_establish ())
+			$this->logged = true;
+		
+		return $this->logged;
+	} // }}}
 
+	function quit () // {{{
+	{
+		if ($this->logged)
+			$this->socket->close ();
+		unset ($this->flags);
+		return true;
+	} // }}}
+
+	private function connect () // {{{
+	{
 		$this->socket = new my_socket ();
 		$this->socket->server = $this->server;
 		$this->socket->port = $this->port;
 
 		if (! $this->socket->connect ())
 		{
-			$this->last_error = $this->socket->last_error;
+			$this->last_error = __('Error during connection: ') . $this->socket->last_error;
 			return false;
 		}
 
-		$this->flags['connected'] = true;
 		return true;
 	} // }}}
 	
-	function quit () // {{{
-	{
-		if (array_key_exists ('connected', $this->flags))
-			$this->socket->close ();
-		unset ($this->flags);
-		return true;
-	} // }}}
-
-	function authenticate () // {{{
+	private function authenticate () // {{{
 	{
 		$stream_begin = "<stream:stream xmlns='jabber:client'
 			xmlns:stream='http://etherx.jabber.org/streams'
@@ -123,7 +130,7 @@ class xmpp_stream // {{{
 
 		if (! $this->socket->send ($stream_begin))
 		{
-			$this->last_error = __('Stream initiate failure.') . '<br />';
+			$this->last_error = __('Stream initiate failure: ');
 			$this->last_error .= $this->socket->last_error;
 			$this->quit ();
 			return false;
@@ -134,17 +141,8 @@ class xmpp_stream // {{{
 
 	} // }}}
 
-	function bind () // {{{
+	private function bind () // {{{
 	{
-		if (! array_key_exists ('connected', $this->flags)
-			|| ! array_key_exists ('authenticated', $this->flags))
-		{
-			$this->last_error = 'Bind try while not connected or authenticated.';
-			return false;
-		}
-		elseif (array_key_exists ('bound', $this->flags))
-			return true;
-
 		$stream_begin = "<stream:stream xmlns='jabber:client'
 			xmlns:stream='http://etherx.jabber.org/streams'
 			to='" . $this->domain .
@@ -152,7 +150,7 @@ class xmpp_stream // {{{
 
 		if (! $this->socket->send ($stream_begin))
 		{
-			$this->last_error = __('Binding failure.') . '<br />';
+			$this->last_error = __('Binding failure: ');
 			$this->last_error .= $this->socket->last_error;
 			$this->quit ();
 			return false;
@@ -167,18 +165,11 @@ class xmpp_stream // {{{
 		}
 	} // }}}
 
-	function session_establish () // {{{
+	private function session_establish () // {{{
 	{
-		if (! array_key_exists ('bound', $this->flags))
+		if (array_key_exists ('SESSION', $this->features))
 		{
-			$this->last_error = 'Session establishment try while not bound.';
-			return false;
-		}
-		if (array_key_exists ('session', $this->flags))
-			return true;
-		elseif (array_key_exists ('SESSION', $this->features))
-		{
-			$id = time ();
+			$id = time () . rand ();
 			$this->ids['session'] = 'session' . $id;
 			$configuration = get_option ('jabber_feed_configuration');
 			$message_session = "<iq to='" . $configuration['domain'] ."' type='set' id='session" . $id . "'>";
@@ -189,7 +180,6 @@ class xmpp_stream // {{{
 				"session_end_handler", 'session'));
 		}
 		else
-			//$this->last_error = 'Session feature not available on the remote server.';
 			// if the server does not support session, so we just continue without session establishment!
 			return true;
 	} // }}}
@@ -197,8 +187,8 @@ class xmpp_stream // {{{
 	function notify ($server, $node, $id, $title, $link,
 		$content = '', $excerpt = '') // {{{
 	{
-		if (! create_leaf ($server, $node))
-			return false;
+		//if (! $this->create_leaf ($server, $node))
+		//	return false;
 			
 		if (version_compare (phpversion (), '5') == -1)
 		{
@@ -240,7 +230,7 @@ class xmpp_stream // {{{
 
 		if (! $this->socket->send ($message))
 		{
-			$this->last_error = __('Notification failure.') . '<br />';
+			$this->last_error = __('Notification failure: ');
 			$this->last_error .= $this->socket->last_error;
 			$this->quit ();
 			return FALSE;
@@ -252,7 +242,7 @@ class xmpp_stream // {{{
 
 	function delete_item ($server, $node, $id) // {{{
 	{
-		$iq_id = time ();
+		$iq_id = time () . rand ();
 		$this->ids['delete'] = 'retract' . $iq_id;
 
 		$message = "<iq type='set' from='" . $this->jid . "' ";
@@ -263,7 +253,7 @@ class xmpp_stream // {{{
 
 		if (! $this->socket->send ($message))
 		{
-			$this->last_error = __('Item deletion failure.') . '<br />';
+			$this->last_error = __('Item deletion failure: ');
 			$this->last_error .= $this->socket->last_error;
 			$this->quit ();
 			return FALSE;
@@ -300,11 +290,10 @@ class xmpp_stream // {{{
 	{
 		if ($node == '')
 		{
-			$this->last_error = __('Empty node. No instant node supported.') . $node . '".';
+			$this->last_error = __('Empty node. No instant node supported.');
 			return false;
 		}
 
-		unset ($this->flags['node_type']);
 		$node_type = $this->node_type ($server, $node);
 
 		if ($node_type == 'leaf')
@@ -316,12 +305,10 @@ class xmpp_stream // {{{
 		}
 
 		$subnode = $this->subnode ($node);
-		unset ($this->flags['collection_created']);
+
 		if ($subnode == false || $this->create_collection ($server, $subnode))
 		{
-			unset ($this->flags['collection_created']);
-			unset ($this->flags['leaf_created']);
-			$iq_id = time ();
+			$iq_id = time () . rand ();
 			$this->ids['leaf'] = 'create' . $iq_id;
 
 			$message = "<iq type='set' from='" . $this->jid . "' ";
@@ -332,7 +319,7 @@ class xmpp_stream // {{{
 
 			if (! $this->socket->send ($message))
 			{
-				$this->last_error = __('Leaf creation failure:') . '<br />';
+				$this->last_error = __('Leaf creation failure: ');
 				$this->last_error .= $this->socket->last_error;
 				$this->quit ();
 				return FALSE;
@@ -349,14 +336,13 @@ class xmpp_stream // {{{
 	{
 		if ($node == '')
 		{
-			$this->last_error = __('Empty node. No instant node supported.') . $node . '".';
+			$this->last_error = __('Empty node. No instant node supported.');
 			return false;
 		}
 
-		unset ($this->flags['node_type']);
 		$node_type = $this->node_type ($server, $node);
 
-		if ($node_type == 'collection')
+		if ($node_type == 'collection') // || 'service' -> root!
 			return true;
 		elseif ($node_type == 'leaf')
 		{
@@ -365,10 +351,8 @@ class xmpp_stream // {{{
 		}
 
 		$subnode = $this->subnode ($node);
-		unset ($this->flags['collection_created']);
 		if ($subnode == false || $this->create_collection ($server, $subnode))
 		{
-			unset ($this->flags['collection_created']);
 			$iq_id = time () . rand ();
 			$this->ids['collection'] = 'create' . $iq_id;
 
@@ -382,7 +366,7 @@ class xmpp_stream // {{{
 
 			if (! $this->socket->send ($message))
 			{
-				$this->last_error = __('Collection node creation failure:') . '<br />';
+				$this->last_error = __('Collection node creation failure: ');
 				$this->last_error .= $this->socket->last_error;
 				$this->quit ();
 				return FALSE;
@@ -406,16 +390,14 @@ class xmpp_stream // {{{
 
 		if (! $this->socket->send ($query_info))
 		{
-			$this->last_error = __('Node information discovery failure:') . '<br />';
+			$this->last_error = __('Node information discovery failure: ');
 			$this->last_error .= $this->socket->last_error;
 			$this->quit ();
 			return FALSE;
 		}
 
-		$this->process_read ("node_info_start_handler",
-			"node_info_end_handler", 'node_type');
-
-		return $this->flags['node_type'];
+		return ($this->process_read ("node_info_start_handler",
+			"node_info_end_handler", 'node_type'));
 	} // }}}
 
 // this function returns "root1/root2" if you give it "root1/root2/node" and return false if you give ''
@@ -446,13 +428,13 @@ class xmpp_stream // {{{
 		$last_update = time ();
 		while (true)
 		{
-			if (array_key_exists ($flag, $this->flags)) // success!
+			if (array_key_exists ($flag, $this->flags))
 				break;
-			elseif ($this->must_close) // semantic error
+			/*elseif ($this->must_close) // semantic error
 			{
 				$this->last_error = __('Unexpected error: ') . $this->last_error;
 				break;
-			}
+			}*/
 
 			$data = $this->socket->read ();
 
@@ -467,9 +449,12 @@ class xmpp_stream // {{{
 				continue;
 			elseif (!xml_parse($xml_parser, $data, FALSE))
 			{
-				$this->last_error = sprintf("XML parsing error: %s at line %d",
+				$this->last_error = sprintf("XML parsing error %d %d: %s at line %d (\"%s\").",
+					xml_get_error_code ($xml_parser),
+					XML_ERROR_INVALID_TOKEN,
 					xml_error_string(xml_get_error_code ($xml_parser)),
-					xml_get_current_line_number ($xml_parser));
+					xml_get_current_line_number ($xml_parser),
+					htmlentities ($data));
 				break;
 			}
 			else // data read on the socket and processed in the handlers if needed!
@@ -481,7 +466,11 @@ class xmpp_stream // {{{
 
 		xml_parser_free ($xml_parser);
 		if (array_key_exists ($flag, $this->flags))
-			return true;
+		{
+			$return_value = $this->flags[$flag];
+			unset ($this->flags[$flag]);
+			return $return_value;
+		}
 		else
 			return false;
 	} // }}}
@@ -524,8 +513,7 @@ class xmpp_stream // {{{
 		elseif ($name == 'CHALLENGE'
 			&& ! array_key_exists ('challenged_once', $this->flags))
 		{
-			// I get the challenge from cdata.
-			// I decode it (base64).
+			// I get the challenge from cdata and decode it (base64).
 			$decoded_challenge = base64_decode ($this->current_cdata);
 			$sasl = new Auth_SASL_DigestMD5 ();
 			$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge, $this->domain, 'xmpp');
@@ -534,9 +522,10 @@ class xmpp_stream // {{{
 
 			if (! $this->socket->send ($response))
 			{
-				$this->last_error = __('Authentication failure.') . '<br />';
+				$this->last_error = __('Authentication failure: ');
 				$this->last_error .= $_socket->last_error;
-				$this->must_close = true;
+				$this->flags['authenticated'] = false;
+				//$this->must_close = true;
 				return;
 			}
 			
@@ -549,17 +538,19 @@ class xmpp_stream // {{{
 			$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'/>';
 			if (! $this->socket->send ($response))
 			{
-				$this->last_error = __('Authentication failure.') . '<br />';
+				$this->last_error = __('Authentication failure: ');
 				$this->last_error .= $_socket->last_error;
-				$this->must_close = true;
+				$this->flags['authenticated'] = false;
+				//$this->must_close = true;
 				return;
 			}
 		}
 		elseif ($name == 'FAILURE' || $name == 'STREAM:STREAM')
 		{
 			$this->socket->send ('</stream:stream>');
-			$this->last_error = __('Authentication failure: wrong username or password.') . '<br />';
-			$this->must_close = true;;
+			$this->last_error = __('Authentication failure: wrong username or password.');
+			$this->flags['authenticated'] = false;
+			//$this->must_close = true;;
 			return;
 		}
 		elseif ($name == 'SUCCESS')
@@ -568,8 +559,9 @@ class xmpp_stream // {{{
 		{
 			if ($this->chosen_mechanism == '')
 			{
-				$this->last_error = __('No compatible authentication mechanism');
-				$this->must_close = true;
+				$this->last_error = __('No compatible authentication mechanism.');
+				$this->flags['authenticated'] = false;
+				//$this->must_close = true;
 			}
 			else
 			{
@@ -603,7 +595,8 @@ class xmpp_stream // {{{
 		{
 			unset ($this->flags['resource_error']);
 			$this->last_error = __('Resource binding returned an error of type "') . $attrs['TYPE'] . '".';
-			$this->must_close = true;
+			$this->flags['bound'] = false;
+			//$this->must_close = true;
 		}
 		$this->common_start_handler ($name);
 	} // }}}
@@ -624,13 +617,15 @@ class xmpp_stream // {{{
 				{
 					$this->last_error = __('Failure during binding.') . '<br />';
 					$this->last_error .= $this->socket->last_error;
-					$this->must_close = true;
+					$this->flags['bound'] = false;
+					//$this->must_close = true;
 				}
 			}
 			else 
 			{
 				$this->last_error = __('Bind feature not available.');
-				$this->must_close = true;
+				$this->flags['bound'] = false;
+				//$this->must_close = true;
 			}
 		}
 		elseif (array_key_exists ('features', $this->flags))
@@ -662,7 +657,8 @@ class xmpp_stream // {{{
 		{
 			unset ($this->flags['session_error']);
 			$this->last_error = __('Session establishment returned an error of type "') . $attrs['TYPE'] . '".';
-			$this->must_close = true;
+			$this->flags['session'] = false;
+			//$this->must_close = true;
 		}
 			
 		$this->common_start_handler ($name);
@@ -691,7 +687,8 @@ class xmpp_stream // {{{
 		{
 			unset ($this->flags['publish_error']);
 			$this->last_error = __('Publication returned an error of type "') . $attrs['TYPE'] . '".';
-			$this->must_close = true;
+			$this->flags['published'] = false;
+			//$this->must_close = true;
 		}
 
 		$this->common_start_handler ($name);
@@ -720,7 +717,8 @@ class xmpp_stream // {{{
 		{
 			unset ($this->flags['item_deletion_error']);
 			$this->last_error = __('Item deletion returned an error of type "') . $attrs['TYPE'] . '".';
-			$this->must_close = true;
+			$this->flags['item_deleted'] = false;
+			//$this->must_close = true;
 		}
 
 		$this->common_start_handler ($name);
@@ -738,7 +736,7 @@ class xmpp_stream // {{{
 		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['leaf'] == $attrs['ID'])
 		{
 			unset ($this->ids['leaf']);
-			$this->flags['leaf_created'] = true;
+			$this->flags['leaf_creation_success'] = true;
 		}
 		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['leaf'] == $attrs['ID'])
 		{
@@ -746,11 +744,7 @@ class xmpp_stream // {{{
 			$this->flags['leaf_creation_error'] = true;
 		}
 		elseif ($name == 'ERROR' && array_key_exists ('leaf_creation_error', $this->flags))
-		{
-			unset ($this->flags['leaf_creation_error']);
 			$this->last_error = __('Leaf node creation returned an error of type "') . $attrs['TYPE'] . '".';
-			$this->must_close = true;
-		}
 
 		$this->common_start_handler ($name);
 	} // }}}
@@ -758,6 +752,16 @@ class xmpp_stream // {{{
 	private function leaf_creation_end_handler () // {{{
 	{
 		$this->common_end_handler ();
+		if ($name == 'IQ' && array_key_exists ('leaf_creation_error', $this->flags))
+		{
+			unset ($this->flags['leaf_creation_error']);
+			$this->flags['leaf_created'] = false;
+		}
+		elseif ($name == 'IQ' && array_key_exists ('leaf_creation_success', $this->flags))
+		{
+			unset ($this->flags['leaf_creation_success']);
+			$this->flags['leaf_created'] = true;
+		}
 	} // }}}
 
 // Collection node creation //
@@ -767,7 +771,7 @@ class xmpp_stream // {{{
 		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['collection'] == $attrs['ID'])
 		{
 			unset ($this->ids['collection']);
-			$this->flags['collection_created'] = true;
+			$this->flags['collection_creation_success'] = true;
 		}
 		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['collection'] == $attrs['ID'])
 		{
@@ -775,11 +779,7 @@ class xmpp_stream // {{{
 			$this->flags['collection_creation_error'] = true;
 		}
 		elseif ($name == 'ERROR' && array_key_exists ('collection_creation_error', $this->flags))
-		{
-			unset ($this->flags['collection_creation_error']);
 			$this->last_error = __('Collection node creation returned an error of type "') . $attrs['TYPE'] . '".';
-			$this->must_close = true;
-		}
 
 		$this->common_start_handler ($name);
 	} // }}}
@@ -787,6 +787,16 @@ class xmpp_stream // {{{
 	private function collection_creation_end_handler () // {{{
 	{
 		$this->common_end_handler ();
+		if ($name == 'IQ' && array_key_exists ('collection_creation_error', $this->flags))
+		{
+			unset ($this->flags['collection_creation_error']);
+			$this->flags['collection_created'] = false;
+		}
+		elseif ($name == 'IQ' && array_key_exists ('collection_creation_success', $this->flags))
+		{
+			unset ($this->flags['collection_creation_success']);
+			$this->flags['collection_created'] = true;
+		}
 	} // }}}
 
 // Node information discovery //
@@ -816,7 +826,8 @@ class xmpp_stream // {{{
 		if ($name == 'IQ' && array_key_exists ('node_info_error', $this->flags))
 		{
 			unset ($this->flags['node_info_error']);
-			$this->must_close = true;
+			$this->flags['node_type'] = false;
+			//$this->must_close = true;
 		}
 		elseif ($name == 'IQ' && array_key_exists ('node_info_success', $this->flags))
 		{
