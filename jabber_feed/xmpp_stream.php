@@ -297,7 +297,10 @@ class xmpp_stream // {{{
 		$node_type = $this->node_type ($server, $node);
 
 		if ($node_type == 'leaf')
+		{
+			$this->last_error .= 'plouf!';
 			return true;
+		}
 		elseif ($node_type == 'collection')
 		{
 			$this->last_error = __('This node already exists but is a collection node: "') . $node . '".';
@@ -430,11 +433,6 @@ class xmpp_stream // {{{
 		{
 			if (array_key_exists ($flag, $this->flags))
 				break;
-			/*elseif ($this->must_close) // semantic error
-			{
-				$this->last_error = __('Unexpected error: ') . $this->last_error;
-				break;
-			}*/
 
 			$data = $this->socket->read ();
 
@@ -447,7 +445,8 @@ class xmpp_stream // {{{
 			}
 			elseif (strlen ($data) === 0)
 				continue;
-			elseif (!xml_parse($xml_parser, $data, FALSE))
+			//elseif (!xml_parse($xml_parser, $data, FALSE))
+			elseif (xml_parse($xml_parser, $data, FALSE) == XML_STATUS_ERROR)
 			{
 				$this->last_error = sprintf("XML parsing error %d %d: %s at line %d (\"%s\").",
 					xml_get_error_code ($xml_parser),
@@ -541,7 +540,6 @@ class xmpp_stream // {{{
 				$this->last_error = __('Authentication failure: ');
 				$this->last_error .= $_socket->last_error;
 				$this->flags['authenticated'] = false;
-				//$this->must_close = true;
 				return;
 			}
 		}
@@ -550,7 +548,6 @@ class xmpp_stream // {{{
 			$this->socket->send ('</stream:stream>');
 			$this->last_error = __('Authentication failure: wrong username or password.');
 			$this->flags['authenticated'] = false;
-			//$this->must_close = true;;
 			return;
 		}
 		elseif ($name == 'SUCCESS')
@@ -646,7 +643,7 @@ class xmpp_stream // {{{
 		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['session'] == $attrs['ID'])
 		{
 			unset ($this->ids['session']);
-			$this->flags['session'] = true;
+			$this->flags['session_success'] = true;
 		}
 		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['session'] == $attrs['ID'])
 		{
@@ -658,7 +655,6 @@ class xmpp_stream // {{{
 			unset ($this->flags['session_error']);
 			$this->last_error = __('Session establishment returned an error of type "') . $attrs['TYPE'] . '".';
 			$this->flags['session'] = false;
-			//$this->must_close = true;
 		}
 			
 		$this->common_start_handler ($name);
@@ -667,6 +663,11 @@ class xmpp_stream // {{{
 	private function session_end_handler ($parser, $name) // {{{
 	{
 		$this->common_end_handler ();
+		if ($name == 'IQ' && array_key_exists ('session_success', $this->flags))
+		{
+			unset ($this->flags['session_success']);
+			$this->flags['session'] = true;
+		}
 	} // }}}
 
 // Pubsub Notification //
@@ -694,7 +695,7 @@ class xmpp_stream // {{{
 		$this->common_start_handler ($name);
 	} // }}}
 	
-	private function notification_end_handler () // {{{
+	private function notification_end_handler ($parser, $name) // {{{
 	{
 		$this->common_end_handler ();
 	} // }}}
@@ -724,7 +725,7 @@ class xmpp_stream // {{{
 		$this->common_start_handler ($name);
 	} // }}}
 	
-	private function item_deletion_end_handler () // {{{
+	private function item_deletion_end_handler ($parser, $name) // {{{
 	{
 		$this->common_end_handler ();
 	} // }}}
@@ -749,7 +750,7 @@ class xmpp_stream // {{{
 		$this->common_start_handler ($name);
 	} // }}}
 	
-	private function leaf_creation_end_handler () // {{{
+	private function leaf_creation_end_handler ($parser, $name) // {{{
 	{
 		$this->common_end_handler ();
 		if ($name == 'IQ' && array_key_exists ('leaf_creation_error', $this->flags))
@@ -784,7 +785,7 @@ class xmpp_stream // {{{
 		$this->common_start_handler ($name);
 	} // }}}
 	
-	private function collection_creation_end_handler () // {{{
+	private function collection_creation_end_handler ($parser, $name) // {{{
 	{
 		$this->common_end_handler ();
 		if ($name == 'IQ' && array_key_exists ('collection_creation_error', $this->flags))
@@ -821,13 +822,12 @@ class xmpp_stream // {{{
 		$this->common_start_handler ($name);
 	} // }}}
 	
-	private function node_info_end_handler () // {{{
+	private function node_info_end_handler ($parser, $name) // {{{
 	{
 		if ($name == 'IQ' && array_key_exists ('node_info_error', $this->flags))
 		{
 			unset ($this->flags['node_info_error']);
 			$this->flags['node_type'] = false;
-			//$this->must_close = true;
 		}
 		elseif ($name == 'IQ' && array_key_exists ('node_info_success', $this->flags))
 		{

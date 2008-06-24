@@ -233,22 +233,17 @@ function jabber_feed_configuration_page () // {{{
 		$configuration['publish_comments'] = strip_tags (trim($_POST['publish_comments']));
 		$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
 
-		// TODO: now I test the connection, then I create the necessary nodes. If all is ok, then ok. Else.
 		$xs = new xmpp_stream ($configuration['node'],
 			$configuration['domain'], $configuration['password'],
 			'bot', $configuration['server'], $configuration['port']);
 		
-		/*if ($xs->connect () && $xs->authenticate () && $xs->bind ()
-			&& $xs->session_establish ()
-			&& $xs->create_leaf ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/posts')*/
-			/* && $xs->create_leaf ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/comments')
-			&& $xs->create_leaf ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/pages') */
 		if ($xs->log ()
 			&& $xs->create_leaf ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/posts')
+			&& $xs->create_collection ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/comments')
+			&& $xs->create_leaf ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/pages')
 			&& $xs->quit ())
 		{
 			update_option('jabber_feed_configuration', $configuration);
