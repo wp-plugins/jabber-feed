@@ -472,6 +472,8 @@ function jabber_feed_header () // {{{
 {
 	if (is_single ())
 		jabber_feed_display ('current', 'link');
+	elseif (is_page ())
+		jabber_feed_display ('pages', 'link');
 	else
 		jabber_feed_display ('posts', 'link');
 } // }}}
