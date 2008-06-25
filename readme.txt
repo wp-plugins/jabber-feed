@@ -29,7 +29,7 @@ be no harm! ;-), but I will provide far better versions progressively...
 * Comments are published on the subnode comments/<id> with <id> being the id
 of the corresponding post;
 * Posts, as well as comments, are deleted automatically from the associated
-pubsub nodes if you delete them from the Wordpress website;
+pubsub nodes if you delete them, disapprove them, or flag them as spam from the Wordpress website;
 * Posts, as well as comments, are updated automatically on the associated
 pubsub nodes if you edit them on your Wordpress website;
 * Autodiscover xmpp link for all posts is automatically set on all pages,
@@ -77,6 +77,33 @@ At the opposite, if you find a bug or encounter an issue on some configuration, 
 
 = Examples for using the function templates =
 
+jabber_feed_get and jabber_feed_display have the same parameters, but the
+first returns the link whereas the latter display it:
+
+1. jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
+2. jabber_feed_display ($node = 'posts', $what = 'url', $text = '')
+
+* 'node' can be 'all', 'posts', 'pages', 'comments', 'current' (comments of
+the current page/post) or a number (comments of the given numbered post/page);
+* 'what' can be the bare 'url', or included in a 'a' tag, or a 'link' tag;
+* 'text' is optional displayed text (only when 'a' tag).
+
+So for instance, if the pubsub server is 'pubsub.jabber.org' and the node is
+'blog':
+1. "jabber_feed_display ('posts', 'bare')" displays simply:
+	xmpp:pubsub.jabber.org?action=subscribe;node=blog/posts
+	which is a bare url of the node containing all the posts.
+2. "jabber_feed_get ('comments', 'a', 'All the comments')" will return:
+	<a rel='alternate'
+	href='xmpp:pubsub.jabber.org?action=subscribe;node=blog/comments;subscription_type=items;subscription_depth=1'>All
+	the comments</a>
+	which is a link for all comments.
+3. "jabber_feed_display (5, 'link')" will display:
+	<link rel='alternate' href='xmpp:pubsub.jabber.org?action=subscribe;node=blog/comments/5' />
+	which is an autodiscovery link for the comments of post 5.
+
+Etc.
+
 == Configuration ==
 
 In the 'Jabber Feed configuration' menu, you will see the following sections:
@@ -100,20 +127,30 @@ This is an advanced section in case your server uses a server which is not the
 one shown on the jid or a port different from the default one (5222).
 These are not mandatory fields. The default values will be used if empty.
 
-* the Jabber server (Often the same as 'myseveraddress' of the jid);
+* the Jabber server (often the same as 'myseveraddress' of the jid);
 * the Jabber port (usually 5222).
 
-= The node =
+= PubSub configuration =
 
 Where to publish the notifications. It can be on a separate server.
 
+* the pubsub server;
+* the root publication node.
+
+Note that this node does not have to exist. When you will press the "Update"
+button, the providden Jabber login and connection parameters will be tested
+and the node will be created with all its tree. If anything goes wrong, you
+will be informed about it.
+
 == Manage Posts ==
 
-This page with the list of published posts have been modified. A new column
+The page with the list of published posts have been modified. A new column
 called "Jabber Feed" will display:
-* The publication date on the node and the name of the item.
-* 'X' when an error has occured during publication.
-* '-' when no publication never occurred (which is simply when the post has
+* The publication date on the node (and the last update will appear on a
+bubble when the mouse passes by);
+* 'Error on publication' when an error has occured during publication (and the
+error text will be displayed when the mouse passes by);
+* 'Not Published' when no publication never occurred (which is simply when the post has
  been published on Wordpress before the plugin has been installed.
 
 == Frequently Asked Questions ==
@@ -143,9 +180,9 @@ browser! :-)
 
 = From myself: which jabber server has a good pubsub implementation? =
 
-I am using ejabberd 2.0.1 for my own, but it is pretty flawed on many ways.
+I am using ejabberd 2.0 and 2.0.1 for my own, but it is pretty flawed on many ways.
 Especially it is impossible to configure your subscription to a node. What a
-shame!
+shame! :-(
 But especially it is apparently impossible in the last current version to
 subscribe to a node on an outside server.
 Anyway it is good enough basically for the proof of concept.
