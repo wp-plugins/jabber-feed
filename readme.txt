@@ -77,11 +77,11 @@ At the opposite, if you find a bug or encounter an issue on some configuration, 
 
 = Examples for using the function templates =
 
-jabber_feed_get and jabber_feed_display have the same parameters, but the
-first returns the link whereas the latter display it:
+`jabber_feed_get` and `jabber_feed_display` have the same parameters, but the
+first returns the link whereas the latter displays it:
 
-1. jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
-2. jabber_feed_display ($node = 'posts', $what = 'url', $text = '')
+1. `jabber_feed_get ($node = 'posts', $what = 'url', $text = '')`
+2. `jabber_feed_display ($node = 'posts', $what = 'url', $text = '')`
 
 * 'node' can be 'all', 'posts', 'pages', 'comments', 'current' (comments of
 the current page/post) or a number (comments of the given numbered post/page);
@@ -90,17 +90,24 @@ the current page/post) or a number (comments of the given numbered post/page);
 
 So for instance, if the pubsub server is 'pubsub.jabber.org' and the node is
 'blog':
-1. "jabber_feed_display ('posts', 'bare')" displays simply:
-	xmpp:pubsub.jabber.org?action=subscribe;node=blog/posts
-	which is a bare url of the node containing all the posts.
-2. "jabber_feed_get ('comments', 'a', 'All the comments')" will return:
-	<a rel='alternate'
+* `jabber_feed_display ('posts', 'bare')` displays simply:
+
+	`xmpp:pubsub.jabber.org?action=subscribe;node=blog/posts`
+
+which is a bare url of the node containing all the posts.
+* `jabber_feed_get ('comments', 'a', 'All the comments')` will return:
+
+	`<a rel='alternate'
 	href='xmpp:pubsub.jabber.org?action=subscribe;node=blog/comments;subscription_type=items;subscription_depth=1'>All
-	the comments</a>
-	which is a link for all comments.
-3. "jabber_feed_display (5, 'link')" will display:
-	<link rel='alternate' href='xmpp:pubsub.jabber.org?action=subscribe;node=blog/comments/5' />
-	which is an autodiscovery link for the comments of post 5.
+	the comments</a>`
+
+which is a link for all comments.
+* `jabber_feed_display (5, 'link')` will display:
+	
+	`<link rel='alternate'
+	href='xmpp:pubsub.jabber.org?action=subscribe;node=blog/comments/5' />`
+
+which is an autodiscovery link for the comments of post 5.
 
 Etc.
 
@@ -192,8 +199,15 @@ them.
 
 == Screenshots ==
 
-1.
-2.
+1. The configuration page;
+2. The modified post management page;
+3. The templates in practice: I added the code `Subscribe to the Jabber feeds:
+<?php jabber_feed_display ('posts', 'a', "Publication jabber"); ?> and
+<?php jabber_feed_display ('comments', 'a'); ?>` to the footer.php of the
+theme (here default).
+4. The templates in practice again: I added `<?php jabber_feed_display
+('current', 'a', 'Jabber') ?>` in the single.php file of the theme (between
+the p tag of class 'postmetadata alt' in the default theme).
 
 == Todo ==
 
