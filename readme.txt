@@ -246,6 +246,11 @@ languages: English and French).
 * And what if the post or page is private? Should it be added on a node? Maybe
 a node with a white list that the admin can manage?
 
+* Apparently if I disapprove or flag a comment as spam from the "edit comment"
+page, it does not remove it from the node. Why? Is it a bug from Wordpress
+which does not trigger the action in all cases? Or is there another Wordpress'
+action for this specific case?
+
 == Contacts ==
 
 You can have some news about this plugin on [my freedom haven](http://jehan.zemarmot.net "my public diary") or of course, soon by subscribing on a xmpp pubsub node.
