@@ -90,11 +90,13 @@ the current page/post) or a number (comments of the given numbered post/page);
 
 So for instance, if the pubsub server is 'pubsub.jabber.org' and the node is
 'blog':
+
 * `jabber_feed_display ('posts', 'bare')` displays simply:
 
 	`xmpp:pubsub.jabber.org?action=subscribe;node=blog/posts`
 
 which is a bare url of the node containing all the posts.
+
 * `jabber_feed_get ('comments', 'a', 'All the comments')` will return:
 
 	`<a rel='alternate'
@@ -102,6 +104,7 @@ which is a bare url of the node containing all the posts.
 	the comments</a>`
 
 which is a link for all comments.
+
 * `jabber_feed_display (5, 'link')` will display:
 	
 	`<link rel='alternate'
@@ -142,7 +145,8 @@ These are not mandatory fields. The default values will be used if empty.
 Where to publish the notifications. It can be on a separate server.
 
 * the pubsub server;
-* the root publication node.
+* the root publication node;
+* 2 checkboxes to uncheck if you don't want to publish the posts or the comments.
 
 Note that this node does not have to exist. When you will press the "Update"
 button, the providden Jabber login and connection parameters will be tested
@@ -202,7 +206,7 @@ them.
 1. The configuration page;
 2. The modified post management page;
 3. The templates in practice: I added the code `Subscribe to the Jabber feeds:
-<?php jabber_feed_display ('posts', 'a', "Publication jabber"); ?> and
+<?php jabber_feed_display ('posts', 'a', "entries (jabber)"); ?> and
 <?php jabber_feed_display ('comments', 'a'); ?>` to the footer.php of the
 theme (here default).
 4. The templates in practice again: I added `<?php jabber_feed_display
