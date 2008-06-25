@@ -219,6 +219,9 @@ the p tag of class 'postmetadata alt' in the default theme).
  publication from this page (with multiple checkbox if possible to massively
  run publication!).
 
+* And what about an equivalent of post management for comments?! Is it
+possible (apparently not, according to Wordpress documentation)?
+
 * The item should also be updated when a published post is edited.
 
 * Why not add support to pages? -> current work.
