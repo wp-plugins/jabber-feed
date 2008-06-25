@@ -261,28 +261,27 @@ class xmpp_stream // {{{
 			"item_deletion_end_handler", 'item_deleted'));
 	} // }}}
 
-	/*function delete_container ($server, $node, $id) // {{{
+	function delete_node ($server, $node) // {{{
 	{
-		$iq_id = time ();
+		$iq_id = time () . rand ();
 		$this->ids['delete'] = 'delete' . $iq_id;
 
 		$message = "<iq type='set' from='" . $this->jid . "' ";
 		$message .= "to='" . $server . "' id='delete" . $iq_id . "'>";
 		$message .= "<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>";
-		$message .= "<delete node='" . $node . "' />";
-		$message .= "</pubsub></iq>";
+		$message .= "<delete node='" . $node . "' /></pubsub></iq>";
 
 		if (! $this->socket->send ($message))
 		{
-			$this->last_error = __('Notification failure.') . '<br />';
+			$this->last_error = __('Node deletion failure: ');
 			$this->last_error .= $this->socket->last_error;
 			$this->quit ();
 			return FALSE;
 		}
 
-		return ($this->process_read ("notification_start_handler",
-			"notification_end_handler", 'published'));
-	} // }}} */
+		return ($this->process_read ("node_deletion_start_handler",
+			"node_deletion_end_handler", 'node_deleted'));
+	} // }}}
 
 	function create_leaf ($server, $node) // {{{
 	{
@@ -294,7 +293,9 @@ class xmpp_stream // {{{
 
 		$node_type = $this->node_type ($server, $node);
 
-		if ($node_type == 'leaf')
+		// Workaround bug EJAB-672 of ejabberd.
+		// This is the right behaviour but not working because of ejabberd bug.
+		/*if ($node_type == 'leaf')
 		{
 			$this->last_error .= 'plouf!';
 			return true;
@@ -303,7 +304,11 @@ class xmpp_stream // {{{
 		{
 			$this->last_error = __('This node already exists but is a collection node: "') . $node . '".';
 			return false;
-		}
+		} */ 
+		// This is a flawed behaviour, due to the fact that all nodes are leaf node in ejabberd 2.0.1.
+		if ($node_type != false)
+			return true;
+		// End of workaround.
 
 		$subnode = $this->subnode ($node);
 
@@ -343,13 +348,18 @@ class xmpp_stream // {{{
 
 		$node_type = $this->node_type ($server, $node);
 
-		if ($node_type == 'collection') // || 'service' -> root!
+		// Workaround bug EJAB-672 of ejabberd.
+		/*if ($node_type == 'collection') // || 'service' -> root!
 			return true;
 		elseif ($node_type == 'leaf')
 		{
 			$this->last_error = __('This node already exists but is a leaf node: "') . $node . '".';
 			return false;
-		}
+		}*/
+		// This is a flawed behaviour, due to the fact that all nodes are leaf node in ejabberd 2.0.1.
+		if ($node_type != false)
+			return true;
+		// End of workaround.
 
 		$subnode = $this->subnode ($node);
 		if ($subnode == false || $this->create_collection ($server, $subnode))
@@ -699,7 +709,7 @@ class xmpp_stream // {{{
 		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['delete'] == $attrs['ID'])
 		{
 			unset ($this->ids['delete']);
-			$this->flags['item_deleted'] = true;
+			$this->flags['item_deletion_success'] = true;
 		}
 		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['delete'] == $attrs['ID'])
 		{
@@ -707,11 +717,7 @@ class xmpp_stream // {{{
 			$this->flags['item_deletion_error'] = true;
 		}
 		elseif ($name == 'ERROR' && array_key_exists ('item_deletion_error', $this->flags))
-		{
-			unset ($this->flags['item_deletion_error']);
 			$this->last_error = __('Item deletion returned an error of type "') . $attrs['TYPE'] . '".';
-			$this->flags['item_deleted'] = false;
-		}
 
 		$this->common_start_handler ($name);
 	} // }}}
@@ -719,6 +725,51 @@ class xmpp_stream // {{{
 	private function item_deletion_end_handler ($parser, $name) // {{{
 	{
 		$this->common_end_handler ();
+		if ($name == 'IQ' && array_key_exists ('item_deletion_error', $this->flags))
+		{
+			unset ($this->flags['item_deletion_error']);
+			$this->flags['item_deleted'] = false;
+		}
+		elseif ($name == 'IQ' && array_key_exists ('item_deletion_success', $this->flags))
+		{
+			unset ($this->flags['item_deletion_success']);
+			$this->flags['item_deleted'] = true;
+		}
+	} // }}}
+
+// Node deletion //
+
+	private function node_deletion_start_handler ($parser, $name, $attrs) // {{{
+	{
+		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['delete'] == $attrs['ID'])
+		{
+			unset ($this->ids['delete']);
+			$this->flags['node_deletion_success'] = true;
+		}
+		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['delete'] == $attrs['ID'])
+		{
+			unset ($this->ids['delete']);
+			$this->flags['node_deletion_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('node_deletion_error', $this->flags))
+			$this->last_error = __('Node deletion returned an error of type "') . $attrs['TYPE'] . '".';
+
+		$this->common_start_handler ($name);
+	} // }}}
+	
+	private function node_deletion_end_handler ($parser, $name) // {{{
+	{
+		$this->common_end_handler ();
+		if ($name == 'IQ' && array_key_exists ('node_deletion_error', $this->flags))
+		{
+			unset ($this->flags['node_deletion_error']);
+			$this->flags['node_deleted'] = false;
+		}
+		elseif ($name == 'IQ' && array_key_exists ('node_deletion_success', $this->flags))
+		{
+			unset ($this->flags['node_deletion_success']);
+			$this->flags['node_deleted'] = true;
+		}
 	} // }}}
 
 // Leaf node creation //

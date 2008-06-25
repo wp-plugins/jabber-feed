@@ -33,7 +33,7 @@ function jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
 	$url .= $configuration['pubsub_node'];
 
 	if ($node == 'comments')
-		$url .= '/comments';
+		$url .= '/comments;subscription_type=items;subscription_depth=1';
 	elseif ($node == 'pages')
 		$url .= '/pages';
 	elseif ($node == 'current')
