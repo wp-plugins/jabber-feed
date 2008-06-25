@@ -60,7 +60,7 @@ function xmpp_publish_post ($post_ID) // {{{
 		&& $xs->notify ($configuration['pubsub_server'],
 			$configuration['pubsub_node'] . '/posts', $id, $feed_title,
 			$link, $feed_content, $feed_excerpt)
-		 && $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments' . $id)
+		 && $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $id)
 		&& $xs->quit ()))
 	{
 		echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
@@ -70,12 +70,18 @@ function xmpp_publish_post ($post_ID) // {{{
 	else
 	{
 		if (array_key_exists ($post_ID, $history))
-			$history[$post_ID]['updated'] = date ('c');
+		{
+			if (array_key_exists ('error', $history[$post_ID]))
+			{
+				unset ($history['$post_ID']['error']);
+				$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+			}
+			else
+				$history[$post_ID]['updated'] = date ('c');
+		}
 		else
 			$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
 			
-		if (array_key_exists ('error', $history[$post_ID]))
-			unset ($history['$post_ID']['error']);
 
 	}
 	update_option('jabber_feed_post_history', $history);
@@ -98,6 +104,7 @@ function xmpp_delete_post_page ($ID) // {{{
 	if (! ($xs->log ()
 		&& $xs->delete_item ($configuration['pubsub_server'],
 			$configuration['pubsub_node'] . '/posts', $history[$ID]['id'])
+		 && $xs->delete_node ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $ID)
 		&& $xs->quit ()))
 	{
 		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
@@ -122,7 +129,10 @@ add_action ('delete_post', 'xmpp_delete_post_page');
 function xmpp_publish_comment ($comment_ID, $status) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
-	if ($status == 1 && ! empty ($configuration['publish_comments']))
+	if (empty ($configuration['publish_comments']))
+		return $comment_ID;
+
+	if ($status == 1)
 	{
 		$blog_title = get_bloginfo ('name'); 
 
@@ -152,12 +162,18 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 		else
 		{
 			if (array_key_exists ($id, $history))
-				$history[$id]['updated'] = date ('c');
+			{
+				if (array_key_exists ('error', $history[$comment_ID]))
+				{
+					unset ($history['$comment_ID']['error']);
+					$history[$id] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+				}
+				else
+					$history[$id]['updated'] = date ('c');
+			}
 			else
 				$history[$id] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
 				
-			if (array_key_exists ('error', $history[$post_ID]))
-				unset ($history['$post_ID']['error']);
 		}
 	}
 
@@ -174,6 +190,7 @@ function xmpp_delete_comment ($comment_ID) // {{{
 	if (empty ($configuration['publish_comments']))
 		return $comment_ID;
 
+	$history = get_option('jabber_feed_comment_history');
 	$comment = get_comment ($comment_ID, OBJECT);
 
 	$xs = new xmpp_stream ($configuration['node'],
@@ -189,14 +206,31 @@ function xmpp_delete_comment ($comment_ID) // {{{
 		echo $xs->last_error . '</p></div>';
 	}
 	else
-			unset ($history[$id]);
+			unset ($history[$comment_ID]);
 
 	update_option('jabber_feed_comment_history', $history);
 	return $comment_ID;
 } // }}}
 
+
+function xmpp_comment_status ($comment_ID, $status) // {{{
+{
+	$configuration = get_option ('jabber_feed_configuration');
+	if (empty ($configuration['publish_comments']))
+		return $comment_ID;
+
+
+	if ($status == 'approve')
+		xmpp_publish_comment ($comment_ID, 1);
+	else
+		xmpp_delete_comment ($comment_ID);
+
+	return $comment_ID;
+} // }}}
+
 add_action ('comment_post', 'xmpp_publish_comment', 10, 2);
 add_action ('delete_comment', 'xmpp_delete_comment');
+add_action ('wp_set_comment_status', 'xmpp_comment_status', 10, 2);
 
 /**********************\
 // Configuration Page \\
@@ -231,7 +265,7 @@ function jabber_feed_configuration_page () // {{{
 
 		$configuration['publish_posts'] = strip_tags (trim($_POST['publish_posts']));
 		$configuration['publish_comments'] = strip_tags (trim($_POST['publish_comments']));
-		$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
+		//$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
 
 		$xs = new xmpp_stream ($configuration['node'],
 			$configuration['domain'], $configuration['password'],
@@ -363,17 +397,17 @@ function jabber_feed_configuration_page () // {{{
 					/>
 					<label for="publish_comments"><?php _e('Publish comments') ?></label><br />
 
-					<input name="publish_pages"
+					<!-- <input name="publish_pages"
 						type="checkbox"
-						id="publish_pages"
+						id="publish_pages" -->
 						<?php
-						if (! empty ($configuration['publish_pages']))
-						{
+						//if (! empty ($configuration['publish_pages']))
+						//{
 						?>
-						checked="checked"
-						<?php } ?>
-					/>
-					<label for="publish_pages"><?php _e('Publish pages') ?></label><br />
+						<!-- checked="checked" -->
+						<?php //} ?>
+					<!-- />
+					<label for="publish_pages"><?php //_e('Publish pages') ?></label><br /> -->
 			
 				</p>
 			</fieldset>
@@ -472,6 +506,8 @@ function jabber_feed_header () // {{{
 {
 	if (is_single ())
 		jabber_feed_display ('current', 'link');
+	elseif (is_page ())
+		jabber_feed_display ('pages', 'link');
 	else
 		jabber_feed_display ('posts', 'link');
 } // }}}

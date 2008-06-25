@@ -32,15 +32,17 @@ function jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
 	$url = "xmpp:" . $configuration['pubsub_server'] . "?action=subscribe;node=";
 	$url .= $configuration['pubsub_node'];
 
-	if ($node == 'comments')
-		$url .= '/comments';
+	if ($node == 'all')
+		$url .= ';subscription_type=items;subscription_depth=1';
+	elseif ($node == 'comments')
+		$url .= '/comments;subscription_type=items;subscription_depth=1';
 	elseif ($node == 'pages')
 		$url .= '/pages';
 	elseif ($node == 'current')
 		$url .= '/comments/' . $post->ID;
 	elseif (is_int ($node))
 		$url .= '/comments/' . $node;
-	elseif ($node == 'posts' || $node != 'all')
+	else //($node == 'posts')
 		$url .= '/posts';
 
 	if ($what == 'a')
