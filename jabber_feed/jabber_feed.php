@@ -265,7 +265,7 @@ function jabber_feed_configuration_page () // {{{
 
 		$configuration['publish_posts'] = strip_tags (trim($_POST['publish_posts']));
 		$configuration['publish_comments'] = strip_tags (trim($_POST['publish_comments']));
-		$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
+		//$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
 
 		$xs = new xmpp_stream ($configuration['node'],
 			$configuration['domain'], $configuration['password'],
@@ -397,17 +397,17 @@ function jabber_feed_configuration_page () // {{{
 					/>
 					<label for="publish_comments"><?php _e('Publish comments') ?></label><br />
 
-					<input name="publish_pages"
+					<!-- <input name="publish_pages"
 						type="checkbox"
-						id="publish_pages"
+						id="publish_pages" -->
 						<?php
-						if (! empty ($configuration['publish_pages']))
-						{
+						//if (! empty ($configuration['publish_pages']))
+						//{
 						?>
-						checked="checked"
-						<?php } ?>
-					/>
-					<label for="publish_pages"><?php _e('Publish pages') ?></label><br />
+						<!-- checked="checked" -->
+						<?php //} ?>
+					<!-- />
+					<label for="publish_pages"><?php //_e('Publish pages') ?></label><br /> -->
 			
 				</p>
 			</fieldset>
