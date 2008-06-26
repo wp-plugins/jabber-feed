@@ -252,7 +252,10 @@ a node with a white list that the admin can manage?
 * Apparently if I disapprove or flag a comment as spam from the "edit comment"
 page, it does not remove it from the node. Why? Is it a bug from Wordpress
 which does not trigger the action in all cases? Or is there another Wordpress'
-action for this specific case?
+action for this specific case? Try this also with posts from the "edit post"
+page.
+
+* Add more authentication mechanisms...
 
 == Contacts ==
 
