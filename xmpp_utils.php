@@ -16,14 +16,34 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// This function transform $xhtml, which is a normal xhtml content in the corresponding xhtml-im.
+// It supports currently only the core module of XEP-0071.
+// This first version does not fix badly html originally + do not remove illegal characters.
+// http://openweb.eu.org/articles/xhtml_une_heure/
 function xhtml2htmlim ($xhtml)
 {
-	$xhtmlim = html_entity_decode ($xhtml);
+	$xhtmlim = "<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>";
+	function callback ('$match')
+	{
+		if ()
+		return
+	}
+	//$xhtmlim = html_entity_decode ($xhtml);
 
 	// & must be transformed in &amp; but this is utf-8 and all others &... transform in equivalent utf-8, for instance &oelig;
 	// 
 
+	$xhtmlim .= preg_replace_callback ('<(\S*)/');
+	$xhtmlim .= "</body></html>";
 	return $xhtmlim;
+}
+
+function fixxhtml ($bad)
+{
+}
+
+function xhtml2bare ($xhtml)
+{
 }
 
 ?>
