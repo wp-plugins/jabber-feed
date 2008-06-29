@@ -2,7 +2,7 @@
 
 Contributors: Jehan Hysseo
 Donate link: http://jehan.zemarmot.net/blog/jabber-feed/
-Tags: jabber, xmpp, pubsub, xep-0060, notification, feed
+Tags: jabber, xmpp, pubsub, xep-0060, notification, feed, posts, comments
 requires at least: 2.0
 Tested up to: 2.5.1
 Stable tag: 0.3
