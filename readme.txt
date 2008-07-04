@@ -257,6 +257,13 @@ page.
 
 * Add more authentication mechanisms...
 
+* Advanced options:
+	- xhtml-im (if tidy library unavailable, this is grayed by default with a
+	message): bare version is sent anyway for clients not understanding
+	xhtmlim.
+	- if excerpt available, send this instead.
+	- if <!--more--> set, send only post's part before the tag.
+
 == Contacts ==
 
 You can have some news about this plugin on [my freedom haven](http://jehan.zemarmot.net "my public diary") or of course, soon by subscribing on a xmpp pubsub node.

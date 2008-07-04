@@ -45,30 +45,28 @@ function jabber_feed_get ($node = 'posts', $what = 'url', $text = '')
 	else //($node == 'posts')
 		$url .= '/posts';
 
-	if ($what == 'a')
+	if (empty ($text))
 	{
-		$url = "<a rel='alternate' href='" . $url . "'>";
-		if (empty ($text))
-		{
-			if ($node == 'comments')
-				$url .= __('Comments') . " (Jabber)";
-			elseif ($node == 'current')
-				$url .= __('Comments of the current entry') . " (Jabber)";
-			elseif ($node == 'pages')
-				$url .= __('Pages') . " (Jabber)";
-			elseif (is_int ($node))
-				$url .= __('Comments of entry "') . get_post($id)->post_title . '" (Jabber)';
-			elseif ($node == 'posts' || $node != 'all')
-				$url .= __('Entries') . " (Jabber)";
-			else
-				$url .= __('Entries, pages and comments') . " (Jabber)";
-		}
-		else
-			$url .= htmlentities ($text);
-		$url .= "</a>";
+		if ($node == 'all')
+			$text = __('Entries, pages and comments') . " (Jabber)";
+		elseif ($node == 'comments')
+			$text = __('Comments') . " (Jabber)";
+		elseif ($node == 'current')
+			$text = __('Comments of the current entry') . " (Jabber)";
+		elseif ($node == 'pages')
+			$text = __('Pages') . " (Jabber)";
+		elseif (is_int ($node))
+			$text = __('Comments of entry "') . get_post($id)->post_title . '" (Jabber)';
+		else // ($node == 'posts')
+			$text = __('Entries') . " (Jabber)";
 	}
+	else
+		$text = htmlentities ($text);
+
+	if ($what == 'a')
+		$url = "<a rel='alternate' href='" . $url . "'>" . $text . "</a>";
 	elseif ($what == 'link')
-		$url = "<link rel='alternate' href='" . $url . "' />";
+		$url = '<link rel="alternate" title="' . $text . '" href="' . $url . '" />';
 
 	return $url;
 }
