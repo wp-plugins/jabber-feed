@@ -65,7 +65,7 @@ function fixxhtml ($bad)
 		return false;
 }
 
-function xhtml2bare ($xhtml)
+function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parser?!!
 {
 	$pattern[0] = '/\s+/';
 	$replacement[0] = ' ';
@@ -79,7 +79,7 @@ function xhtml2bare ($xhtml)
 	$pattern[3] = '/<span[^>]*>(.*)<\/span>/U';
 	$replacement[3] = '${1}';
 
-	$pattern[4] = '/<a\s+[^>]* href=(\'|")([^>]*)\1[^>]*>(.*)<\/a>/U'; // here is it possible ' or " in a url?
+	$pattern[4] = '/<a\s+[^>]* href=(\'|")([^\'"]*)\1[^>]*>(.*)<\/a>/U'; // here is it possible ' or " in a url?
 	$replacement[4] = '${3} [ ${2} ]';
 
 	$pattern[6] = '/<li[^>]*>(.*)<\/li>/U';
