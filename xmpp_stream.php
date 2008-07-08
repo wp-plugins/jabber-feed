@@ -215,8 +215,9 @@ class xmpp_stream // {{{
 			// Isn't it a bug to report to ejabberd?
 			//$message .= '<content type="xhtml">' . 'n&oelig;uds de publication' . '</content>';
 			// TODO: in fact, only &amp; is possible! Other must be utf8.
-			$message .= '<content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><![CDATA[' . $content;
-			$message .= ']]></div></content>';
+			//$message .= '<content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><![CDATA[' . $content;
+			//$message .= ']]></div></content>';
+			$message .= "<content>" . $content . "</content>";
 		}
 
       $message .= '<link rel="alternate" type="text/html" href="';

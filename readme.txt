@@ -61,11 +61,19 @@ Note that if your theme uses the 'wp_head' function in its header (most cases), 
 * PHP must be built with the option `--enable-sockets` on PHP 4 >= 4.0.7 or PHP 5 (though I haven't tried with such a version, with PHP 5.3.0 and more, this extension is moved to the PECL repository!). If you have an error relating to socket, this is most likely a dependency issue.
 Note for gentoo users: you must set the 'sockets' USE flag.
 
-* It uses the library 'expat' to parse XML (enabled with the '--with-xml'
+* It uses the library 'expat' to parse XML (enabled with the `--with-xml`
 option of the php compilation).
 Note for gentoo users: you must set the 'xml' USE flag.
 
-* It uses the 'Auth_SASL PEAR' module ("pear install Auth_SASL" or install with your distribution's package manager) for SASL authentication. For now, this dependency is mandatory because this is the only supported authentication mechanism. Maybe in some future will it become optional.
+* It uses the `Auth_SASL PEAR` module (`pear install Auth_SASL` or install with your distribution's package manager) for SASL authentication. For now, this dependency is mandatory because this is the only supported authentication mechanism. Maybe in some future will it become optional.
+
+* OPTIONAL: to have the option of sending formated notification with XHTML-IM
+(XEP-0071), the "tidy" PECL extension must be installed. It is based on the libtidy
+library which must first be installed: http://tidy.sourceforge.net/
+Then with PHP 4.3.X or PHP 5, you can install it as a PEAR module: `pecl install tidy`; or with the
+`--with-tidy` compilation option in PHP 5.
+Without this, you won't have access to the XHTML-IM option and all
+notification will be sent as a normal textual message.
 
 = Working Platforms =
 

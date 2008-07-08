@@ -26,6 +26,7 @@ Author URI: http://jehan.zemarmot.net
 */
 
 require_once(dirname(__FILE__) . '/xmpp_stream.php');
+require_once(dirname(__FILE__) . '/xmpp_utils.php');
 require_once(dirname(__FILE__) . '/templates.php');
 
 ///////////////////////
@@ -45,11 +46,39 @@ function xmpp_publish_post ($post_ID) // {{{
 	$post_title = $post->post_title;
 	$post_author = get_userdata ($post->post_author)->display_name;
 	$feed_title = '[' . $blog_title . "] " . $post_title . " (publisher: " . $post_author . ')';
-	$feed_content = $post->post_content;
-	$feed_excerpt = $post->post_excerpt;
-	$link = $post->guid;
-	$id = $post_ID;
 
+	$post_content = $post->post_content;
+	$post_excerpt = $post->post_excerpt;
+	$feed_content = '';
+	$feed_excerpt = '';
+	$link = $post->guid;
+
+	if (empty ($configuration['publish_extract']))
+		$feed_content = $post_content;
+	elseif (! empty ($post_excerpt))
+	{
+		$feed_excerpt = $post_excerpt;
+		$feed_excerpt .= '<br /><a href="' . $link . '">' . __("Read the rest of this entry on the website.") . '</a>';
+	}
+	else
+	{
+		$pattern = '/<!--\s*more(.|\n)*$/';
+		$replacement = '<br /><a href="' . $link . '">' . __("Read the rest of this entry on the website.") . '</a>';
+		//$count_rep = 0;
+		$feed_excerpt = preg_replace ($pattern, $replacement, $post_content, 1);//, $count_rep);
+	}
+
+	if (empty ($configuration['publish_xhtmlim']))
+	{
+		$feed_content = xhtml2bare ($feed_content);
+		$feed_excerpt = xhtml2bare ($feed_excerpt);
+	}
+	else
+	{
+		$feed_content = xhtml2xhtmlim ($feed_content);
+		$feed_excerpt = xhtml2xhtmlim ($feed_excerpt);
+	}
+		
 	$xs = new xmpp_stream ($configuration['node'],
 		$configuration['domain'], $configuration['password'],
 		'bot', $configuration['server'], $configuration['port']);
@@ -58,9 +87,10 @@ function xmpp_publish_post ($post_ID) // {{{
 
 	if (! ($xs->log ()
 		&& $xs->notify ($configuration['pubsub_server'],
-			$configuration['pubsub_node'] . '/posts', $id, $feed_title,
+			$configuration['pubsub_node'] . '/posts', $post_ID, $feed_title,
+			//$link, $feed_content, $feed_excerpt)
 			$link, $feed_content, $feed_excerpt)
-		 && $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $id)
+		 && $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID)
 		&& $xs->quit ()))
 	{
 		echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
@@ -73,7 +103,7 @@ function xmpp_publish_post ($post_ID) // {{{
 		{
 			if (array_key_exists ('error', $history[$post_ID]))
 			{
-				unset ($history['$post_ID']['error']);
+				unset ($history[$post_ID]['error']);
 				$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
 			}
 			else
@@ -81,8 +111,6 @@ function xmpp_publish_post ($post_ID) // {{{
 		}
 		else
 			$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
-			
-
 	}
 	update_option('jabber_feed_post_history', $history);
 
@@ -267,6 +295,9 @@ function jabber_feed_configuration_page () // {{{
 		$configuration['publish_comments'] = strip_tags (trim($_POST['publish_comments']));
 		//$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
 
+		$configuration['publish_extract'] = strip_tags (trim($_POST['publish_extract']));
+		$configuration['publish_xhtmlim'] = strip_tags (trim($_POST['publish_xhtmlim']));
+
 		$xs = new xmpp_stream ($configuration['node'],
 			$configuration['domain'], $configuration['password'],
 			'bot', $configuration['server'], $configuration['port']);
@@ -296,6 +327,16 @@ function jabber_feed_configuration_page () // {{{
 	<div class="wrap">
 		<?php //$history = get_option('jabber_feed_post_history');
 		//print_r ($history); // for tests!
+		$zeid = 27;
+		$zepost = get_post ($zeid, OBJECT);
+		echo "CONTENT<br />";
+		echo htmlentities($zepost->post_content);
+		echo "EXCERPT<br />";
+		echo htmlentities ($zepost->post_excerpt);
+		echo "FILTER<br />";
+		echo htmlentities ($zepost->post_content_filtered);
+		echo "END<br />";
+
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
 		<form method="post" action="">
@@ -397,20 +438,65 @@ function jabber_feed_configuration_page () // {{{
 					/>
 					<label for="publish_comments"><?php _e('Publish comments') ?></label><br />
 
-					<!-- <input name="publish_pages"
+					<input name="publish_pages"
 						type="checkbox"
-						id="publish_pages" -->
+						id="publish_pages"
 						<?php
-						//if (! empty ($configuration['publish_pages']))
-						//{
+						if (! empty ($configuration['publish_pages']))
+						{
 						?>
-						<!-- checked="checked" -->
-						<?php //} ?>
-					<!-- />
-					<label for="publish_pages"><?php //_e('Publish pages') ?></label><br /> -->
+						checked="checked"
+						<?php } ?>
+						disabled="disabled"
+					/>
+					<label for="publish_pages"><?php _e('Publish pages (feature not yet implemented)') ?></label><br />
 			
 				</p>
 			</fieldset>
+
+			<fieldset class="options">
+				<legend><?php _e('Notification Options') ?></legend>
+					<input name="publish_extract"
+						type="checkbox"
+						id="publish_extract"
+						<?php
+						if (! empty ($configuration['publish_extract']))
+						{
+						?>
+						checked="checked"
+						<?php } ?>
+					/>
+					<label for="publish_extract"><?php _e('Publish extract only (if available)') ?></label><br />
+
+					<input name="publish_xhtmlim"
+						type="checkbox"
+						id="publish_xhtmlim"
+						<?php
+						if (class_exists (tidy))
+						{
+							if (! empty ($configuration['publish_xhtmlim']))
+							{
+						?>
+						checked="checked"
+						<?php
+							}
+						}
+						else
+						{
+						?>
+						disabled="disabled"
+						<?php } ?>
+					/>
+					<label for="publish_xhtmlim"><?php _e('Format message in XHTML-IM (a textual version is also sent).');
+					if (! class_exists (tidy))
+					{ ?>
+					<br /> <em>
+					<?php	_e ('This feature is disabled because the "tidy" library is missing on this system (read the prerequisites for more information).') ?>
+					</em>
+					<?php } ?>
+					</label><br />
+			</fieldset>
+
 
 			<div class="submit">
 				<input type="submit"

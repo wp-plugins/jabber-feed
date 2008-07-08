@@ -20,10 +20,10 @@
 // It supports currently only the core module of XEP-0071.
 // This first version does not fix badly html originally + do not remove illegal characters.
 // http://openweb.eu.org/articles/xhtml_une_heure/
-function xhtml2htmlim ($xhtml)
+function xhtml2xhtmlim ($xhtml)
 {
 	// For this, I am supposing the xhtml is compliant! I use the tidy package for this.
-	$xhtmlim = "<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>";
+	/*$xhtmlim = "<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>";
 	function callback ('$match')
 	{
 		if ($match[1] == 'br')
@@ -46,7 +46,14 @@ function xhtml2htmlim ($xhtml)
 
 	$xhtmlim .= preg_replace_callback ('<(\S*)/');
 	$xhtmlim .= "</body></html>";
-	return $xhtmlim;
+	return $xhtmlim;*/
+
+	if (!class_exists ("tidy"))
+		return false;
+
+	//$tidy = new tidy;
+	//$tidy->parseString($xhtml, $config, 'utf8');
+	//$tidy->cleanRepair();
 }
 
 function fixxhtml ($bad)
@@ -67,33 +74,57 @@ function fixxhtml ($bad)
 
 function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parser?!!
 {
-	$pattern[0] = '/\s+/';
+	$pattern[0] = "/( |\t)+/";
 	$replacement[0] = ' ';
 
 	$pattern[1] = '/<p>(.*)<\/p>/U';
-	$replacement[1] = '\t${1}\n';
-
-	$pattern[2] = '/<div[^>]*>(.*)<\/div>/U';
-	$replacement[2] = '${1}\n';
+	$replacement[1] = "\t" .'${1}' . "\n";
 
 	$pattern[3] = '/<span[^>]*>(.*)<\/span>/U';
 	$replacement[3] = '${1}';
 
-	$pattern[4] = '/<a\s+[^>]* href=(\'|")([^\'"]*)\1[^>]*>(.*)<\/a>/U'; // here is it possible ' or " in a url?
+	$pattern[4] = '/<a\s+[^>]*href=(\'|")([^\'"]*)\1[^>]*>(.*)<\/a>/U'; // here is it possible ' or " in a url?
 	$replacement[4] = '${3} [ ${2} ]';
 
-	$pattern[6] = '/<li[^>]*>(.*)<\/li>/U';
-	$replacement[6] = '\n- ${1}';
+	$pattern[6] = '/<li[^>]*>((.|\n)*)<\/li>/U';
+	$replacement[6] = "\n- " . '${1}';
 
-	$pattern[7] = '/<(ul|ol)[^>]*>(.*)<\/\1>/U';
-	$replacement[7] = '${2}\n';
+// I simply remove all emphasing tags: strong, b, em, i.
+
+	$pattern[10] = '/<b>(.*)<\/b>/U';
+	$replacement[10] = '${1}';
+
+	$pattern[11] = '/<em>(.*)<\/em>/U';
+	$replacement[11] = '${1}';
+
+	$pattern[12] = '/<strong>(.*)<\/strong>/U';
+	$replacement[12] = '${1}';
+
+	$pattern[13] = '/<i>(.*)<\/i>/U';
+	$replacement[13] = '${1}';
+
+	$pattern[14] = '/<blockquote>((.|\n)*)<\/blockquote>/U';
+	$replacement[14] = "\n«\n" . '${1}' . "\n»\n";
+
+	$pattern[15] = '/<code>((.|\n)*)<\/code>/U';
+	$replacement[15] = "\n«\n" . '${1}' . "\n»\n";
+
+	$pattern[7] = '/<(ul|ol)[^>]*>((.|\n)*)<\/\1>/U';
+	$replacement[7] = '${2}' . "\n";
 	// for ol, I may replace li by #somerandomnumber# then count the size and finally replace by X/.
 
-	$pattern[8] = '/<(\S*)[^>\/]*>(.*)<\/\1>/';
-	$replacement[8] = '';
+	$pattern[16] = '/(\s*\n)+/';
+	$replacement[16] = "\n";
+
+	$pattern[2] = '/<div[^>]*>(.*)<\/div>/U';
+	$replacement[2] = '${1}' . "\n";
 
 	$pattern[5] = '/<br[^>]*>/';
-	$replacement[5] = '\n';
+	$replacement[5] = "\n";
+
+// I remove all the other tags, as well as their content.
+	$pattern[8] = '/<([^\s>]*)[^>]*>(.*)<\/\1>/';
+	$replacement[8] = '';
 
 	$pattern[9] = '/<[^>]*>/';
 	$replacement[9] = '';
@@ -102,10 +133,10 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 
 	// normalement, une fois le html décodé, je retire < et &, non?
 	// http://www.journaldunet.com/developpeur/tutoriel/xml/041027-xml-caracteres-speciaux.shtml
-	$pattern2[0] = '<';
+	$pattern2[0] = '/</';
 	$replacement2[0] = '&lt;';
 
-	$pattern2[1] = '&';
+	$pattern2[1] = '/&/';
 	$replacement2[1] = '&amp;';
 
 	return (preg_replace ($pattern2, $replacement2, $bare));
