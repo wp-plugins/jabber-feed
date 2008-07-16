@@ -23,13 +23,11 @@
 function xhtml2xhtmlim ($xhtml)
 {
 	// For this, I am supposing the xhtml is compliant! I use the tidy package for this.
-	/*$xhtmlim = "<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>";
-	function callback ('$match')
+	function callback ($match)
 	{
 		if ($match[1] == 'br')
 			return "<br />"; // comment mettre id SI existant?
 		if ($match[1] == 'blockquote|cite|code|div|em|h[1-6]|p|strong') // does div has any structural impact?
-			// maybe I could transform div in p?
 			return "<$match[1]>$match[2]</$match[1]>";
 		if ($match[1] == 'span') // I don't keep the span because it is only for style... But I keep the content
 			return $match[2];
@@ -37,20 +35,21 @@ function xhtml2xhtmlim ($xhtml)
 			return "<a href='$match[2]' hreflang='$match[3]'>$match[4]</a>";
 		else
 			return ''; // If I see any unrecognized tag, I don't display it, nor its content. For instance images?
-		return
 	}
 	//$xhtmlim = html_entity_decode ($xhtml);
 
 	// & must be transformed in &amp; but this is utf-8 and all others &... transform in equivalent utf-8, for instance &oelig;
 	// 
 
-	$xhtmlim .= preg_replace_callback ('<(\S*)/');
-	$xhtmlim .= "</body></html>";
-	return $xhtmlim;*/
 
-	if (!class_exists ("tidy"))
+	$xhtmlim = fixxhtml ($xhtml);
+	if ($xhtmlim == false)
 		return false;
 
+	$xhtmlim = preg_replace_callback ('|<(\S*)[^>]*>([^<]</\1\s*>|', callback, xhtmlim);
+
+	$xhtmlim = "<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>" . $xhtmlim . '</body></html>';
+	return $xhtmlim;
 	//$tidy = new tidy;
 	//$tidy->parseString($xhtml, $config, 'utf8');
 	//$tidy->cleanRepair();
@@ -60,13 +59,22 @@ function fixxhtml ($bad)
 {
 	if (function_exists ("tidy_repair_string"))
 	{
-		$config = array('hide-comments' => TRUE,
+		$config = array(
+			'bare' => TRUE,
+			'doctype' => "omit",
+			'drop-empty-paras' => TRUE,
+			'drop-font-tags' => TRUE,
+			'drop-proprietary-attributes' => TRUE,
+			'fix-backslash' => TRUE,
+			'hide-comments' => TRUE,
 			'fix-backslash' => TRUE,
 			'fix-uri' => TRUE,
 			'logical-emphasis' => TRUE,
 			'output-xhtml' => TRUE,
+			'show-body-only' => TRUE,
+			// Pretty print stuff. Not really useful, just not to have too big lines.
 			'wrap' => 200);
-		return tidy_repair_string ($bad, $config, 'UTF8');
+		return tidy_repair_string ($bad, $config, 'utf8');
 	}
 	else
 		return false;
@@ -74,6 +82,7 @@ function fixxhtml ($bad)
 
 function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parser?!!
 {
+		// note: 'n&oelig;uds de publication' does not work. It must be utf8. Is it normal?
 	$pattern[0] = "/( |\t)+/";
 	$replacement[0] = ' ';
 
@@ -133,11 +142,12 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 
 	// normalement, une fois le html décodé, je retire < et &, non?
 	// http://www.journaldunet.com/developpeur/tutoriel/xml/041027-xml-caracteres-speciaux.shtml
-	$pattern2[0] = '/</';
-	$replacement2[0] = '&lt;';
 
 	$pattern2[1] = '/&/';
 	$replacement2[1] = '&amp;';
+
+	$pattern2[0] = '/</';
+	$replacement2[0] = '&lt;';
 
 	return (preg_replace ($pattern2, $replacement2, $bare));
 }

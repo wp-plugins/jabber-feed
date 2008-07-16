@@ -202,12 +202,22 @@ browser! :-)
 I am using ejabberd 2.0 and 2.0.1 for my own, but it is pretty flawed on many ways.
 Especially it is impossible to configure your subscription to a node. What a
 shame! :-(
-But especially it is apparently impossible in the last current version to
-subscribe to a node on an outside server.
-Anyway it is good enough basically for the proof of concept.
+Anyway it is sufficient basically for the proof of concept, but probably not
+for long-term (even mid-term) real use.
 
 I don't know sufficiently others server softwares to give an opinion about
-them.
+them. But I was told Openfire should have soon a pretty good PubSub support. I
+am still waiting to test it though.
+
+= From myself: which Jabber client could I advice to visitors of my website? =
+
+As explained, there are few, if none, clients with good PubSub support. This
+is why I told this plugin is more a proof of concept than an useful one. But
+hopefully, soon it will be better!
+
+= Do you like to ask questions to yourself? Do you feel lonely? =
+
+Maybe. ;-)
 
 == Screenshots ==
 

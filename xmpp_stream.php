@@ -23,6 +23,7 @@ Jabber Feed is a plugin for the Wordpress diary engine.
 
 require_once('Auth/SASL/DigestMD5.php');
 require_once(dirname(__FILE__) . '/my_socket.php');
+require_once(dirname(__FILE__) . '/xmpp_utils.php');
 
 class xmpp_stream // {{{
 {
@@ -183,7 +184,7 @@ class xmpp_stream // {{{
 	} // }}}
 
 	function notify ($server, $node, $id, $title, $link,
-		$content = '', $excerpt = '') // {{{
+		$content = '', $excerpt = '', $xhtmlim = true) // {{{
 	{
 		if (! $this->create_leaf ($server, $node))
 			return false;
@@ -206,18 +207,18 @@ class xmpp_stream // {{{
 		$message .= "<pubsub xmlns='http://jabber.org/protocol/pubsub'>";
 		$message .= "<publish node='" . $node;
 		$message .= "'><item id='" . $id . "'><entry xmlns='http://www.w3.org/2005/Atom'>";
-		$message .= "<title>" . $title . "</title>";
-		if ($excerpt !== '')
-			$message .= "<summary>" . $excerpt . "</summary>";
-		else
-		{
-			// I use CDATA because '&' are illegal in XML, like in the character entity "&oelig;".
-			// Isn't it a bug to report to ejabberd?
-			//$message .= '<content type="xhtml">' . 'n&oelig;uds de publication' . '</content>';
-			// TODO: in fact, only &amp; is possible! Other must be utf8.
+		$message .= "<title>" . xhtml2bare ($title) . "</title>";
+		if ($excerpt !== '') // I don't know if it is possible to have xhtml excerpt in Wordpress. But let's say the plugin always send only text version.
+			$message .= "<summary>" . xhtml2bare ($excerpt) . "</summary>";
+
 			//$message .= '<content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><![CDATA[' . $content;
 			//$message .= ']]></div></content>';
-			$message .= "<content>" . $content . "</content>";
+		if ($content !== '')
+		{
+			if ($xhtmlim)
+				$message .= '<content type="xhtml"><html xmlns="http://jabber.org/protocol/xhtml-im">' . xhtml2xhtmlim ($content) . '</html></content>';
+			
+			$message .= "<content>" . xhtml2bare ($content) . "</content>";
 		}
 
       $message .= '<link rel="alternate" type="text/html" href="';

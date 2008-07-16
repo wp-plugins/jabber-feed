@@ -93,8 +93,8 @@ function xmpp_publish_post ($post_ID) // {{{
 		 && $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID)
 		&& $xs->quit ()))
 	{
-		echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
-		echo $xs->last_error . '</p></div>';
+		//echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
+		//echo $xs->last_error . '</p></div>';
 		$history[$post_ID] = array ('error' => $xs->last_error);
 	}
 	else
@@ -329,13 +329,17 @@ function jabber_feed_configuration_page () // {{{
 		//print_r ($history); // for tests!
 		$zeid = 27;
 		$zepost = get_post ($zeid, OBJECT);
-		echo "CONTENT<br />";
-		echo htmlentities($zepost->post_content);
-		echo "EXCERPT<br />";
-		echo htmlentities ($zepost->post_excerpt);
-		echo "FILTER<br />";
-		echo htmlentities ($zepost->post_content_filtered);
-		echo "END<br />";
+		//echo "CONTENT<br />";
+		//echo htmlentities($zepost->post_content);
+		//echo "EXCERPT<br />";
+		//echo htmlentities ($zepost->post_excerpt);
+		//echo "FILTER<br />";
+		//echo htmlentities ($zepost->post_content_filtered);
+		//echo "END<br />";
+		echo "NORMAL<br/>";
+		echo htmlentities ($zepost->post_content);
+		echo "<br/><br />IM<br/>";
+		echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
 
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
@@ -466,7 +470,7 @@ function jabber_feed_configuration_page () // {{{
 						checked="checked"
 						<?php } ?>
 					/>
-					<label for="publish_extract"><?php _e('Publish extract only (if available)') ?></label><br />
+					<label for="publish_extract"><?php _e('Publish extract only <em>(when available)</em>') ?></label><br />
 
 					<input name="publish_xhtmlim"
 						type="checkbox"
@@ -487,7 +491,7 @@ function jabber_feed_configuration_page () // {{{
 						disabled="disabled"
 						<?php } ?>
 					/>
-					<label for="publish_xhtmlim"><?php _e('Format message in XHTML-IM (a textual version is also sent).');
+					<label for="publish_xhtmlim"><?php _e('Format message in XHTML-IM <em>(the textual version is also sent)</em>.');
 					if (! class_exists (tidy))
 					{ ?>
 					<br /> <em>
