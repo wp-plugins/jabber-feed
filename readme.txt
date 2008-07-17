@@ -233,6 +233,12 @@ the p tag of class 'postmetadata alt' in the default theme).
 
 == Todo ==
 
+* In the "configuration" window, I should make a detection of the
+prerequisites, gray everything if a mandatory one is not fulfilled and give an
+explanation text.
+
+* And what about internationalization?!
+
 * Manage menu: with failed publication, it should be possible to retry the
  publication from this page (with multiple checkbox if possible to massively
  run publication!).
@@ -274,6 +280,8 @@ action for this specific case? Try this also with posts from the "edit post"
 page.
 
 * Add more authentication mechanisms...
+
+* Add TLS?!
 
 * Advanced options:
 	- xhtml-im (if tidy library unavailable, this is grayed by default with a
