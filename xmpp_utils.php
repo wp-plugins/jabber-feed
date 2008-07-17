@@ -187,68 +187,55 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 {
 	$fixed_html = fixxhtml ($xhtml);
 
-	function start_handler ($parser, $name, $attrs) // {{{
+	function start_bare_handler ($parser, $name, $attrs) // {{{
 	{
 		global $xhtmlim;
 		global $stack;
-		// I don't have to ignore head, html and title elements in the context of this plugin,
-		// as they are anyway (normally at least) not present in a post content.
-		// TODO: section 7.2 -> only br, p and span? What about b, em and hX especially?!!
-		// Section 7.2: br, and p only for now.
 		if ($name == "br")
 		{
-			// no need to push on the stack as "normally" if tidy made well its job, it will close immediately.
-			// But anyway, no risk to do it...
 			array_push ($stack, false);
 			$xhtmlim .= "\n";
 		}
 		elseif ($name == "p")
 			array_push ($stack, true);
-		elseif ($name == "strong" || $name == "em" || preg_match ("/^h[1-6]$/", $name) > 0)
+		elseif (preg_match ("/^h[1-6]$/", $name) > 0)
 		{
+			$xhtmlim .= "\n=== ";
 			array_push ($stack, true);
-			$xhtmlim .= '<' . $name . '>';
+		}	
+		elseif ($name == "strong" || $name == "em")
+		{
+			array_push ($stack, false);
 		}
-		// Section 7.3: only a with mandatory "href" and recommended "type".
 		elseif ($name == "a")
 		{
 			if (array_key_exists ('href', $attrs))
 			{
-				array_push ($stack, true);
+				array_push ($stack, $attrs['href']); // shouldn't I keep the "href" value and write it at the end?!!
 				$xhtmlim .= '<a href="' . $attrs['href'];
-				if (array_key_exists ('type', $attrs))
-					$xhtmlim .= '" type="' . $attrs['type'] . '">';
-				else
-					$xhtmlim .= '">"';
+				//if (array_key_exists ('type', $attrs))
+				//	$xhtmlim .= '" type="' . $attrs['type'] . '">';
+				//else
+				//	$xhtmlim .= '">"';
 			}
 			else
 				array_push ($stack, false);
 		}
-		// section 7.4: only ol, ul and li recommended (what about "title" and accesskey for accessibility?!).
 		// And why not def list? This is just done for IM but XMPP is more than just IM.
-		elseif ($name == "ol" || $name == "ul" || $name == "li")
+		elseif ($name == "ol" || $name == "ul")
 		{
 			array_push ($stack, true);
-			$xhtmlim .= '<' . $name . '>';
+			$xhtmlim .= "\n";
 		}
-		elseif  ($name == "img")
+		if ($name == "li")
 		{
-			if (array_key_exists ('src', $attrs) && array_key_exists ('alt', $attrs))
-			{
-				array_push ($stack, true);
-				$xhtmlim .= '<img src="' . $attrs['src'] . '" alt="' . $attrs['alt'];
-				if (array_key_exists ('height', $attrs))
-					$xhtmlim .= '" height="' . $attrs['height'];
-				if (array_key_exists ('width', $attrs))
-					$xhtmlim .= '" width="' . $attrs['width'];
-				$xhtmlim .= '" />';
-			}
-			else
-				array_push ($stack, false);
-		}
+			array_push ($stack, true);
+			$xhtmlim .= "-"; // should'nt I differentiate ol from ul?!! #1#
+		}	
 		else
 			array_push ($stack, false);
 	} // }}}
+
 	if ($fixed_html != false)
 	{
 		$xml_parser = xml_parser_create();
@@ -263,6 +250,24 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 			return $bare;
 	}
 
+	function end_bare_handler ($parser, $name) // {{{
+	{
+		global $xhtmlim;
+		global $stack;
+		$must_go_to_line = array_pop ($stack);
+		if ($must_go_to_line == true)
+			$xhtmlim .= "\n";
+		elseif ($must_go_to_line == false)
+			;
+		else
+			$xhtmlim .= " [ " . $must_go_to_line . " ] ";
+	} // }}}
+
+	function cdata_bare_handler ($parser, $data) // {{{
+	{
+		global $xhtmlim;
+		$xhtmlim .= $data;
+	} // }}}
 	// I am here if I could not fix the xhtml (most likely tidy is not installed),
 	// or if the parse failed for some reason... So I will return with a more rudimentary method.
 
