@@ -336,10 +336,16 @@ function jabber_feed_configuration_page () // {{{
 		//echo "FILTER<br />";
 		//echo htmlentities ($zepost->post_content_filtered);
 		//echo "END<br />";
+		$test = "<a la='plouf'>yo man &oelig;to<br>c";
 		echo "NORMAL<br/>";
-		echo htmlentities ($zepost->post_content);
+		//echo htmlentities ($zepost->post_content);
+		echo htmlentities ($test);
+		echo "<br /><br />FIXED<br/>";
+		//echo htmlentities (fixxhtml ($zepost->post_content));
+		echo htmlentities (fixxhtml ($test));
 		echo "<br/><br />IM<br/>";
-		echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
+		//echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
+		echo htmlentities (xhtml2xhtmlim ($test));
 
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>

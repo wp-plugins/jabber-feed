@@ -38,7 +38,9 @@ function fixxhtml ($badxhtml) // {{{
 			'uppercase-tags' => FALSE,
 			// Pretty print stuff. Not really useful, just not to have too big lines.
 			'wrap' => 200);
-		return tidy_repair_string ($badxhtml, $config, 'utf8');
+		//return tidy_repair_string ($badxhtml, $config, 'utf8');
+		$ret = tidy_repair_string ($badxhtml, $config, 'utf8');
+		return $ret;
 	}
 	else
 		return false;
@@ -53,21 +55,31 @@ function fixxhtml ($badxhtml) // {{{
 // cf. http://www.xmpp.org/extensions/xep-0071.html
 // This first version does not fix badly html originally + do not remove illegal characters.
 // http://openweb.eu.org/articles/xhtml_une_heure/
+
+// these 2 variables should not be used elsewhere than in "xhtml2xhtmlim"...
+// I could not find any other way to use a common data in handler functions (for XML parsing) than make global variables...
+// Is there any nicer workaround?
+$xhtmlim = "";
+$stack = array ();
+
 function xhtml2xhtmlim ($xhtml) // {{{
 {
+	global $xhtmlim;
 	$xhtml = fixxhtml ($xhtml);
 
 	if ($xhtml == false)
 		// no need to continue if I cannot even check xhtml integrity...
 		return false;
 
-	// From now, I am supposing the xhtml is compliant.
+	// From now on, I am supposing the xhtml is compliant.
 	// Or else it means "tidy" is bugged because I use the tidy package for this.
-	$xhtmlim = "";
-	$stack = array ();
+	//$xhtmlim = "";
+	//$stack = array ();
 
 	function start_handler ($parser, $name, $attrs) // {{{
 	{
+		global $xhtmlim;
+		global $stack;
 		// I don't have to ignore head, html and title elements in the context of this plugin,
 		// as they are anyway (normally at least) not present in a post content.
 		// TODO: section 7.2 -> only br, p and span? What about b, em and hX especially?!!
@@ -76,13 +88,18 @@ function xhtml2xhtmlim ($xhtml) // {{{
 		{
 			// no need to push on the stack as "normally" if tidy made well its job, it will close immediately.
 			// But anyway, no risk to do it...
-			array_push ($stack, true);
+			array_push ($stack, false);
 			$xhtmlim .= "<br/>";
 		}
 		elseif ($name == "p")
 		{
 			array_push ($stack, true);
 			$xhtmlim .= "<p>";
+		}
+		elseif ($name == "strong" || $name == "em" || preg_match ("/^h[1-6]$/", $name) > 0)
+		{
+			array_push ($stack, true);
+			$xhtmlim .= '<' . $name . '>';
 		}
 		// Section 7.3: only a with mandatory "href" and recommended "type".
 		elseif ($name == "a")
@@ -110,12 +127,13 @@ function xhtml2xhtmlim ($xhtml) // {{{
 		{
 			if (array_key_exists ('src', $attrs) && array_key_exists ('alt', $attrs))
 			{
+				array_push ($stack, true);
 				$xhtmlim .= '<img src="' . $attrs['src'] . '" alt="' . $attrs['alt'];
 				if (array_key_exists ('height', $attrs))
 					$xhtmlim .= '" height="' . $attrs['height'];
 				if (array_key_exists ('width', $attrs))
 					$xhtmlim .= '" width="' . $attrs['width'];
-				$xhtmlim .= '">';
+				$xhtmlim .= '" />';
 			}
 			else
 				array_push ($stack, false);
@@ -126,6 +144,8 @@ function xhtml2xhtmlim ($xhtml) // {{{
 
 	function end_handler ($parser, $name) // {{{
 	{
+		global $xhtmlim;
+		global $stack;
 		$last_element_has_been_displayed = array_pop ($stack);
 		if ($last_element_has_been_displayed)
 			$xhtmlim .= "</" . $name . ">";
@@ -133,21 +153,24 @@ function xhtml2xhtmlim ($xhtml) // {{{
 
 	function cdata_handler ($parser, $data) // {{{
 	{
+		global $xhtmlim;
 		$xhtmlim .= $data;
 	} // }}}
 
-	$xml_parser = xml_parser_create();
-	xml_parser_set_option ($parser, XML_OPTION_CASE_FOLDING, false);
-	xml_set_element_handler ($xml_parser,
-		array (&$this, $start_handler),
-		array (&$this, $end_handler));
-	xml_set_character_data_handler ($xml_parser, array (&$this, "cdata_handler"));
+	$xml_parser = xml_parser_create("UTF-8");
+	xml_parser_set_option ($xml_parser, XML_OPTION_CASE_FOLDING, 0);
+	xml_set_element_handler ($xml_parser, "start_handler", "end_handler");
+	xml_set_character_data_handler ($xml_parser, "cdata_handler");
 
-	$parse_status = xml_parse ($xml_parser, $xhtml, FALSE);
+	$parse_status = xml_parse ($xml_parser, "<html>$xhtml</html>", TRUE);
 	xml_parser_free ($xml_parser);
 
+	$ret_value = "<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>" . $xhtmlim . '</body></html>';
+	$xhtmlim = "";
+	$stack = array ();
+
 	if ($parse_status == XML_STATUS_ERROR)
-		return false;
+		return FALSE;
 
 	//$xhtmlim = html_entity_decode ($xhtml, ENT_QUOTES, "UTF-8");
 	// maybe should I use char-encoding and input-encoding options of tidy instead?
@@ -156,14 +179,76 @@ function xhtml2xhtmlim ($xhtml) // {{{
 	// TODO: test &oelig;
 	// numeric entities?!
 
-	$xhtmlim = "<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>" . $xhtmlim . '</body></html>';
-	return $xhtmlim;
+	return $ret_value;
 } // }}}
 
 
 function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parser?!!
 {
 	$fixed_html = fixxhtml ($xhtml);
+
+	function start_handler ($parser, $name, $attrs) // {{{
+	{
+		global $xhtmlim;
+		global $stack;
+		// I don't have to ignore head, html and title elements in the context of this plugin,
+		// as they are anyway (normally at least) not present in a post content.
+		// TODO: section 7.2 -> only br, p and span? What about b, em and hX especially?!!
+		// Section 7.2: br, and p only for now.
+		if ($name == "br")
+		{
+			// no need to push on the stack as "normally" if tidy made well its job, it will close immediately.
+			// But anyway, no risk to do it...
+			array_push ($stack, false);
+			$xhtmlim .= "\n";
+		}
+		elseif ($name == "p")
+			array_push ($stack, true);
+		elseif ($name == "strong" || $name == "em" || preg_match ("/^h[1-6]$/", $name) > 0)
+		{
+			array_push ($stack, true);
+			$xhtmlim .= '<' . $name . '>';
+		}
+		// Section 7.3: only a with mandatory "href" and recommended "type".
+		elseif ($name == "a")
+		{
+			if (array_key_exists ('href', $attrs))
+			{
+				array_push ($stack, true);
+				$xhtmlim .= '<a href="' . $attrs['href'];
+				if (array_key_exists ('type', $attrs))
+					$xhtmlim .= '" type="' . $attrs['type'] . '">';
+				else
+					$xhtmlim .= '">"';
+			}
+			else
+				array_push ($stack, false);
+		}
+		// section 7.4: only ol, ul and li recommended (what about "title" and accesskey for accessibility?!).
+		// And why not def list? This is just done for IM but XMPP is more than just IM.
+		elseif ($name == "ol" || $name == "ul" || $name == "li")
+		{
+			array_push ($stack, true);
+			$xhtmlim .= '<' . $name . '>';
+		}
+		elseif  ($name == "img")
+		{
+			if (array_key_exists ('src', $attrs) && array_key_exists ('alt', $attrs))
+			{
+				array_push ($stack, true);
+				$xhtmlim .= '<img src="' . $attrs['src'] . '" alt="' . $attrs['alt'];
+				if (array_key_exists ('height', $attrs))
+					$xhtmlim .= '" height="' . $attrs['height'];
+				if (array_key_exists ('width', $attrs))
+					$xhtmlim .= '" width="' . $attrs['width'];
+				$xhtmlim .= '" />';
+			}
+			else
+				array_push ($stack, false);
+		}
+		else
+			array_push ($stack, false);
+	} // }}}
 	if ($fixed_html != false)
 	{
 		$xml_parser = xml_parser_create();
