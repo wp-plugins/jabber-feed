@@ -76,86 +76,95 @@ function xhtml2xhtmlim ($xhtml) // {{{
 	//$xhtmlim = "";
 	//$stack = array ();
 
-	function start_handler ($parser, $name, $attrs) // {{{
+	if (!function_exists ("start_handler"))
 	{
-		global $xhtmlim;
-		global $stack;
-		// I don't have to ignore head, html and title elements in the context of this plugin,
-		// as they are anyway (normally at least) not present in a post content.
-		// TODO: section 7.2 -> only br, p and span? What about b, em and hX especially?!!
-		// Section 7.2: br, and p only for now.
-		if ($name == "br")
+		function start_handler ($parser, $name, $attrs) // {{{
 		{
-			// no need to push on the stack as "normally" if tidy made well its job, it will close immediately.
-			// But anyway, no risk to do it...
-			array_push ($stack, false);
-			$xhtmlim .= "<br/>";
-		}
-		elseif ($name == "p")
-		{
-			array_push ($stack, true);
-			$xhtmlim .= "<p>";
-		}
-		elseif ($name == "strong" || $name == "em" || preg_match ("/^h[1-6]$/", $name) > 0)
-		{
-			array_push ($stack, true);
-			$xhtmlim .= '<' . $name . '>';
-		}
-		// Section 7.3: only a with mandatory "href" and recommended "type".
-		elseif ($name == "a")
-		{
-			if (array_key_exists ('href', $attrs))
+			global $xhtmlim;
+			global $stack;
+			// I don't have to ignore head, html and title elements in the context of this plugin,
+			// as they are anyway (normally at least) not present in a post content.
+			// TODO: section 7.2 -> only br, p and span? What about b, em and hX especially?!!
+			// Section 7.2: br, and p only for now.
+			if ($name == "br")
+			{
+				// no need to push on the stack as "normally" if tidy made well its job, it will close immediately.
+				// But anyway, no risk to do it...
+				array_push ($stack, false);
+				$xhtmlim .= "<br/>";
+			}
+			elseif ($name == "p")
 			{
 				array_push ($stack, true);
-				$xhtmlim .= '<a href="' . $attrs['href'];
-				if (array_key_exists ('type', $attrs))
-					$xhtmlim .= '" type="' . $attrs['type'] . '">';
+				$xhtmlim .= "<p>";
+			}
+			elseif ($name == "strong" || $name == "em" || preg_match ("/^h[1-6]$/", $name) > 0)
+			{
+				array_push ($stack, true);
+				$xhtmlim .= '<' . $name . '>';
+			}
+			// Section 7.3: only a with mandatory "href" and recommended "type".
+			elseif ($name == "a")
+			{
+				if (array_key_exists ('href', $attrs))
+				{
+					array_push ($stack, true);
+					$xhtmlim .= '<a href="' . $attrs['href'];
+					if (array_key_exists ('type', $attrs))
+						$xhtmlim .= '" type="' . $attrs['type'] . '">';
+					else
+						$xhtmlim .= '">"';
+				}
 				else
-					$xhtmlim .= '">"';
+					array_push ($stack, false);
 			}
-			else
-				array_push ($stack, false);
-		}
-		// section 7.4: only ol, ul and li recommended (what about "title" and accesskey for accessibility?!).
-		// And why not def list? This is just done for IM but XMPP is more than just IM.
-		elseif ($name == "ol" || $name == "ul" || $name == "li")
-		{
-			array_push ($stack, true);
-			$xhtmlim .= '<' . $name . '>';
-		}
-		elseif  ($name == "img")
-		{
-			if (array_key_exists ('src', $attrs) && array_key_exists ('alt', $attrs))
+			// section 7.4: only ol, ul and li recommended (what about "title" and accesskey for accessibility?!).
+			// And why not def list? This is just done for IM but XMPP is more than just IM.
+			elseif ($name == "ol" || $name == "ul" || $name == "li")
 			{
 				array_push ($stack, true);
-				$xhtmlim .= '<img src="' . $attrs['src'] . '" alt="' . $attrs['alt'];
-				if (array_key_exists ('height', $attrs))
-					$xhtmlim .= '" height="' . $attrs['height'];
-				if (array_key_exists ('width', $attrs))
-					$xhtmlim .= '" width="' . $attrs['width'];
-				$xhtmlim .= '" />';
+				$xhtmlim .= '<' . $name . '>';
+			}
+			elseif  ($name == "img")
+			{
+				if (array_key_exists ('src', $attrs) && array_key_exists ('alt', $attrs))
+				{
+					array_push ($stack, true);
+					$xhtmlim .= '<img src="' . $attrs['src'] . '" alt="' . $attrs['alt'];
+					if (array_key_exists ('height', $attrs))
+						$xhtmlim .= '" height="' . $attrs['height'];
+					if (array_key_exists ('width', $attrs))
+						$xhtmlim .= '" width="' . $attrs['width'];
+					$xhtmlim .= '" />';
+				}
+				else
+					array_push ($stack, false);
 			}
 			else
 				array_push ($stack, false);
-		}
-		else
-			array_push ($stack, false);
-	} // }}}
+		} // }}}
+	}
 
-	function end_handler ($parser, $name) // {{{
+	if (!function_exists ("end_handler"))
 	{
-		global $xhtmlim;
-		global $stack;
-		$last_element_has_been_displayed = array_pop ($stack);
-		if ($last_element_has_been_displayed)
-			$xhtmlim .= "</" . $name . ">";
-	} // }}}
+		function end_handler ($parser, $name) // {{{
+		{
+			global $xhtmlim;
+			global $stack;
+			$last_element_has_been_displayed = array_pop ($stack);
+			if ($last_element_has_been_displayed)
+				$xhtmlim .= "</" . $name . ">";
+		} // }}}
+	}
 
-	function cdata_handler ($parser, $data) // {{{
+	if (!function_exists ("cdata_handler"))
 	{
-		global $xhtmlim;
-		$xhtmlim .= $data;
-	} // }}}
+		function cdata_handler ($parser, $data) // {{{
+		{
+			global $xhtmlim;
+			$xhtmlim .= $data;
+		} // }}}
+	}
 
 	$xml_parser = xml_parser_create("UTF-8");
 	xml_parser_set_option ($xml_parser, XML_OPTION_CASE_FOLDING, 0);
@@ -182,133 +191,156 @@ function xhtml2xhtmlim ($xhtml) // {{{
 	return $ret_value;
 } // }}}
 
-function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parser?!!
+function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml parser?!!
 {
+	global $xhtmlim;
+	global $stack;
 	$fixed_html = fixxhtml ($xhtml);
 
-	function start_bare_handler ($parser, $name, $attrs) // {{{
+	// TODO: there must be a guard to prevent from redefine this, for instance function_exists).
+	if (!function_exists ("start_bare_handler"))
 	{
-		global $xhtmlim;
-		global $stack;
-		if ($name == "br")
+		function start_bare_handler ($parser, $name, $attrs) // {{{
 		{
-			array_push ($stack, false);
-			$xhtmlim .= "\n";
-		}
-		elseif ($name == "p")
-		{
-			$xhtmlim .= "\n\t";
-			array_push ($stack, false);
-		}
-		elseif (preg_match ("/^h[1-6]$/", $name) > 0)
-		{
-			$xhtmlim .= "\n";
-			$value = intval ($name[1]);
-			for ($i = 0; i < $value; i++)
-				$xhtmlim .= "=";
-			array_push ($stack, false);
-		}	
-		elseif ($name == "strong" || $name == "em")
-			array_push ($stack, false);
-		elseif ($name == "a")
-		{
-			if (array_key_exists ('href', $attrs))
+			global $xhtmlim;
+			global $stack;
+			if ($name == "br")
 			{
-				array_push ($stack, $attrs['href']); // shouldn't I keep the "href" value and write it at the end?!!
-				$xhtmlim .= '<a href="' . $attrs['href'];
-				//if (array_key_exists ('type', $attrs))
-				//	$xhtmlim .= '" type="' . $attrs['type'] . '">';
-				//else
-				//	$xhtmlim .= '">"';
+				array_push ($stack, false);
+				$xhtmlim .= "\n";
+			}
+			elseif ($name == "p")
+			{
+				$xhtmlim .= "\n\t";
+				array_push ($stack, false);
+			}
+			elseif (preg_match ("/^h[1-6]$/", $name) > 0)
+			{
+				$xhtmlim .= "\n";
+				$value = intval ($name[1]);
+				for ($i = 0; $i < $value; $i++)
+					$xhtmlim .= "=";
+				array_push ($stack, false);
+			}	
+			elseif ($name == "strong" || $name == "em")
+				array_push ($stack, false);
+			elseif ($name == "a")
+			{
+				if (array_key_exists ('href', $attrs))
+				{
+					array_push ($stack, $attrs['href']); // shouldn't I keep the "href" value and write it at the end?!!
+					//$xhtmlim .= '<a href="' . $attrs['href'];
+					//if (array_key_exists ('type', $attrs))
+					//	$xhtmlim .= '" type="' . $attrs['type'] . '">';
+					//else
+					//	$xhtmlim .= '">"';
+				}
+				else
+					array_push ($stack, false);
+			}
+			// And why not def list? This is just done for IM but XMPP is more than just IM.
+			elseif ($name == "ol")
+			{
+				array_push ($stack, 1);
+				$xhtmlim .= "\n";
+			}
+			elseif ($name == "ul")
+			{
+				array_push ($stack, false);
+				$xhtmlim .= "\n";
+			}
+			elseif ($name == "li")
+			{
+				//$xhtmlim .= "-"; // should'nt I differentiate ol from ul?!! #1#
+				$num = array_pop ($stack);
+				if ($num == false)
+				{
+					$xhtmlim .= "&#8658; ";
+					array_push ($stack, false);
+					array_push ($stack, false);
+				}
+				else
+				{
+					$xhtmlim .= "#" . strval ($num) . "# ";
+					array_push ($stack, $num + 1);
+					array_push ($stack, false);
+				}
+			}	
+			elseif ($name == "blockquote" || $name == "code")
+			{
+				array_push ($stack, false);
+				$xhtmlim .= "\n«\n";
 			}
 			else
 				array_push ($stack, false);
-		}
-		// And why not def list? This is just done for IM but XMPP is more than just IM.
-		elseif ($name == "ol")
+		} // }}}
+	}
+
+	if (!function_exists ("end_bare_handler"))
+	{
+		function end_bare_handler ($parser, $name) // {{{
 		{
-			array_push ($stack, 1);
-			$xhtmlim .= "\n";
-		}
-		elseif ($name == "ul")
-		{
-			array_push ($stack, false);
-			$xhtmlim .= "\n";
-		}
-		elseif ($name == "li")
-		{
-			//$xhtmlim .= "-"; // should'nt I differentiate ol from ul?!! #1#
-			$num = array_pop ($stack);
-			if ($num == false)
+			global $xhtmlim;
+			global $stack;
+			if ($name == "br" || $name == "strong" || $name == "em")
+				array_pop ($stack);
+			elseif ($name == "p")
 			{
-				$xhtmlim .= "&#8658; "
-				array_push ($stack, false);
-				array_push ($stack, false);
+				$xhtmlim .= "\n";
+				array_pop ($stack);
+			}
+			elseif (preg_match ("/^h[1-6]$/", $name) > 0)
+			{
+				array_pop ($stack);
+				$value = intval ($name[1]);
+				for ($i = 0; $i < $value; $i++)
+					$xhtmlim .= "=";
+				$xhtmlim .= "\n";
+			}
+			elseif ($name == "a")
+			{
+				$link = array_pop ($stack);
+				if ($link != false)
+					$xhtmlim .= " [ $link ] ";
+			}
+			elseif ($name == "ol" || $name == "ul" || $name == "li")
+			{
+				$link = array_pop ($stack);
+				$xhtmlim .= "\n";
+			}
+			elseif ($name == "blockquote" || $name == "code")
+			{
+				$xhtmlim .= "\n»\n";
+				array_pop ($stack);
 			}
 			else
-			{
-				$xhtml .= "#" . strval ($num) . "# ";
-				array_push ($stack, $num + 1);
-				array_push ($stack, false);
-			}
-		}	
-		else
-			array_push ($stack, false);
-	} // }}}
+				array_pop ($stack);
 
-	function end_bare_handler ($parser, $name) // {{{
+			//$must_go_to_line = array_pop ($stack);
+			//if ($must_go_to_line == true)
+			//	$xhtmlim .= "\n";
+			//elseif ($must_go_to_line == false)
+			//	;
+			//else
+			//	$xhtmlim .= " [ " . $must_go_to_line . " ] ";
+		} // }}}
+	}
+
+	if (!function_exists ("cdata_bare_handler"))
 	{
-		global $xhtmlim;
-		global $stack;
-		if ($name == "br" || $name == "strong" || $name == "em")
-			array_pop ($stack);
-		elseif ($name == "p")
+		function cdata_bare_handler ($parser, $data) // {{{
 		{
-			$xhtmlim .= "\n";
-			array_pop ($stack);
-		}
-		elseif (preg_match ("/^h[1-6]$/", $name) > 0)
-		{
-			array_pop ($stack);
-			$value = intval ($name[1]);
-			for ($i = 0; i < $value; i++)
-				$xhtmlim .= "=";
-			$xhtmlim .= "\n";
-		}
-		elseif ($name == "a")
-		{
-			$link = array_pop ($stack);
-			if ($link != false)
-				$xhtmlim .= " [ $link ] ";
-		}
-		elseif ($name == "ol" || $name = "ul" || $name = "li")
-		{
-			$link = array_pop ($stack);
-			$xhtmlim .= "\n";
-		}
-		else
-			array_pop ($stack);
-
-		//$must_go_to_line = array_pop ($stack);
-		//if ($must_go_to_line == true)
-		//	$xhtmlim .= "\n";
-		//elseif ($must_go_to_line == false)
-		//	;
-		//else
-		//	$xhtmlim .= " [ " . $must_go_to_line . " ] ";
-	} // }}}
-
-	function cdata_bare_handler ($parser, $data) // {{{
-	{
-		global $xhtmlim;
-		$xhtmlim .= $data;
-	} // }}}
+			global $xhtmlim;
+			$xhtmlim .= $data;
+		} // }}}
+	}
 
 	if ($fixed_html != false)
 	{
-		$xml_parser = xml_parser_create();
-		xml_set_element_handler ($xml_parser, "start_bare_handler", "end_handler");
+		$xml_parser = xml_parser_create("UTF-8");
+		xml_set_element_handler ($xml_parser, "start_bare_handler", "end_bare_handler");
 		xml_set_character_data_handler ($xml_parser, "cdata_bare_handler");
+		xml_parser_set_option ($xml_parser, XML_OPTION_CASE_FOLDING, 0);
 
 		$parse_status = xml_parse ($xml_parser, "<html>$xhtml</html>", TRUE);
 		xml_parser_free ($xml_parser);
@@ -391,6 +423,6 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 	$replacement2[0] = '&lt;';
 
 	return (preg_replace ($pattern2, $replacement2, $bare));
-}
+} // }}}
 
 ?>

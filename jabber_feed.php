@@ -240,7 +240,6 @@ function xmpp_delete_comment ($comment_ID) // {{{
 	return $comment_ID;
 } // }}}
 
-
 function xmpp_comment_status ($comment_ID, $status) // {{{
 {
 	$configuration = get_option ('jabber_feed_configuration');
@@ -327,7 +326,7 @@ function jabber_feed_configuration_page () // {{{
 	<div class="wrap">
 		<?php //$history = get_option('jabber_feed_post_history');
 		//print_r ($history); // for tests!
-		$zeid = 56;
+		$zeid = 68;
 		$zepost = get_post ($zeid, OBJECT);
 		//echo "CONTENT<br />";
 		//echo htmlentities($zepost->post_content);
@@ -338,16 +337,17 @@ function jabber_feed_configuration_page () // {{{
 		//echo "END<br />";
 		$test = "<a la='plouf'>yo man &oelig;to<br>c";
 		echo "NORMAL<br/>";
-		//echo htmlentities ($zepost->post_content);
-		echo htmlentities ($test);
+		echo htmlentities ($zepost->post_content);
+		//echo htmlentities ($test);
 		echo "<br /><br />FIXED<br/>";
-		//echo htmlentities (fixxhtml ($zepost->post_content));
-		echo htmlentities (fixxhtml ($test));
+		echo htmlentities (fixxhtml ($zepost->post_content));
+		//echo htmlentities (fixxhtml ($test));
 		echo "<br/><br />IM<br/>";
-		//echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
-		echo htmlentities (xhtml2xhtmlim ($test));
+		echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
+		//echo htmlentities (xhtml2xhtmlim ($test));
 		echo "<br/><br />bare<br/>";
-		echo htmlentities (xhtml2bare ($test));
+		//echo htmlentities (xhtml2bare ($test));
+		echo (xhtml2bare ($zepost->post_content));
 
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
