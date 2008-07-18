@@ -327,7 +327,7 @@ function jabber_feed_configuration_page () // {{{
 	<div class="wrap">
 		<?php //$history = get_option('jabber_feed_post_history');
 		//print_r ($history); // for tests!
-		$zeid = 27;
+		$zeid = 56;
 		$zepost = get_post ($zeid, OBJECT);
 		//echo "CONTENT<br />";
 		//echo htmlentities($zepost->post_content);
@@ -346,6 +346,8 @@ function jabber_feed_configuration_page () // {{{
 		echo "<br/><br />IM<br/>";
 		//echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
 		echo htmlentities (xhtml2xhtmlim ($test));
+		echo "<br/><br />bare<br/>";
+		echo htmlentities (xhtml2bare ($test));
 
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>

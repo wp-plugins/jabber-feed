@@ -50,18 +50,18 @@ function fixxhtml ($badxhtml) // {{{
 	//$tidy->cleanRepair();
 } // }}}
 
+// these 2 variables should not be used elsewhere than in "xhtml2xhtmlim" or "xhtml2bare"...
+// I could not find any other way to use a common data to all handler functions (for XML parsing)
+// than make global variables...
+// Is there any nicer workaround?
+$xhtmlim = "";
+$stack = array ();
+
 // This function transforms $xhtml, which is a normal xhtml content in the corresponding xhtml-im content.
 // It supports currently only the core module of XEP-0071.
 // cf. http://www.xmpp.org/extensions/xep-0071.html
 // This first version does not fix badly html originally + do not remove illegal characters.
 // http://openweb.eu.org/articles/xhtml_une_heure/
-
-// these 2 variables should not be used elsewhere than in "xhtml2xhtmlim"...
-// I could not find any other way to use a common data in handler functions (for XML parsing) than make global variables...
-// Is there any nicer workaround?
-$xhtmlim = "";
-$stack = array ();
-
 function xhtml2xhtmlim ($xhtml) // {{{
 {
 	global $xhtmlim;
@@ -182,7 +182,6 @@ function xhtml2xhtmlim ($xhtml) // {{{
 	return $ret_value;
 } // }}}
 
-
 function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parser?!!
 {
 	$fixed_html = fixxhtml ($xhtml);
@@ -197,16 +196,20 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 			$xhtmlim .= "\n";
 		}
 		elseif ($name == "p")
-			array_push ($stack, true);
-		elseif (preg_match ("/^h[1-6]$/", $name) > 0)
 		{
-			$xhtmlim .= "\n=== ";
-			array_push ($stack, true);
-		}	
-		elseif ($name == "strong" || $name == "em")
-		{
+			$xhtmlim .= "\n\t";
 			array_push ($stack, false);
 		}
+		elseif (preg_match ("/^h[1-6]$/", $name) > 0)
+		{
+			$xhtmlim .= "\n";
+			$value = intval ($name[1]);
+			for ($i = 0; i < $value; i++)
+				$xhtmlim .= "=";
+			array_push ($stack, false);
+		}	
+		elseif ($name == "strong" || $name == "em")
+			array_push ($stack, false);
 		elseif ($name == "a")
 		{
 			if (array_key_exists ('href', $attrs))
@@ -222,45 +225,77 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 				array_push ($stack, false);
 		}
 		// And why not def list? This is just done for IM but XMPP is more than just IM.
-		elseif ($name == "ol" || $name == "ul")
+		elseif ($name == "ol")
 		{
-			array_push ($stack, true);
+			array_push ($stack, 1);
 			$xhtmlim .= "\n";
 		}
-		if ($name == "li")
+		elseif ($name == "ul")
 		{
-			array_push ($stack, true);
-			$xhtmlim .= "-"; // should'nt I differentiate ol from ul?!! #1#
+			array_push ($stack, false);
+			$xhtmlim .= "\n";
+		}
+		elseif ($name == "li")
+		{
+			//$xhtmlim .= "-"; // should'nt I differentiate ol from ul?!! #1#
+			$num = array_pop ($stack);
+			if ($num == false)
+			{
+				$xhtmlim .= "&#8658; "
+				array_push ($stack, false);
+				array_push ($stack, false);
+			}
+			else
+			{
+				$xhtml .= "#" . strval ($num) . "# ";
+				array_push ($stack, $num + 1);
+				array_push ($stack, false);
+			}
 		}	
 		else
 			array_push ($stack, false);
 	} // }}}
 
-	if ($fixed_html != false)
-	{
-		$xml_parser = xml_parser_create();
-		xml_set_element_handler ($xml_parser,
-			array (&$this, $start_handler),
-			array (&$this, $end_handler));
-		xml_set_character_data_handler ($xml_parser, array (&$this, "cdata_handler"));
-
-		xml_parser_free ($xml_parser);
-
-		if ($parse_status != XML_STATUS_ERROR)
-			return $bare;
-	}
-
 	function end_bare_handler ($parser, $name) // {{{
 	{
 		global $xhtmlim;
 		global $stack;
-		$must_go_to_line = array_pop ($stack);
-		if ($must_go_to_line == true)
+		if ($name == "br" || $name == "strong" || $name == "em")
+			array_pop ($stack);
+		elseif ($name == "p")
+		{
 			$xhtmlim .= "\n";
-		elseif ($must_go_to_line == false)
-			;
+			array_pop ($stack);
+		}
+		elseif (preg_match ("/^h[1-6]$/", $name) > 0)
+		{
+			array_pop ($stack);
+			$value = intval ($name[1]);
+			for ($i = 0; i < $value; i++)
+				$xhtmlim .= "=";
+			$xhtmlim .= "\n";
+		}
+		elseif ($name == "a")
+		{
+			$link = array_pop ($stack);
+			if ($link != false)
+				$xhtmlim .= " [ $link ] ";
+		}
+		elseif ($name == "ol" || $name = "ul" || $name = "li")
+		{
+			$link = array_pop ($stack);
+			$xhtmlim .= "\n";
+		}
 		else
-			$xhtmlim .= " [ " . $must_go_to_line . " ] ";
+			array_pop ($stack);
+
+		//$must_go_to_line = array_pop ($stack);
+		//if ($must_go_to_line == true)
+		//	$xhtmlim .= "\n";
+		//elseif ($must_go_to_line == false)
+		//	;
+		//else
+		//	$xhtmlim .= " [ " . $must_go_to_line . " ] ";
 	} // }}}
 
 	function cdata_bare_handler ($parser, $data) // {{{
@@ -268,6 +303,23 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 		global $xhtmlim;
 		$xhtmlim .= $data;
 	} // }}}
+
+	if ($fixed_html != false)
+	{
+		$xml_parser = xml_parser_create();
+		xml_set_element_handler ($xml_parser, "start_bare_handler", "end_handler");
+		xml_set_character_data_handler ($xml_parser, "cdata_bare_handler");
+
+		$parse_status = xml_parse ($xml_parser, "<html>$xhtml</html>", TRUE);
+		xml_parser_free ($xml_parser);
+
+		$bare = $xhtmlim;
+		$xhtmlim = "";
+		$stack = array ();
+
+		if ($parse_status != XML_STATUS_ERROR)
+			return $bare; // all went OK!
+	}
 	// I am here if I could not fix the xhtml (most likely tidy is not installed),
 	// or if the parse failed for some reason... So I will return with a more rudimentary method.
 
@@ -285,7 +337,7 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 	$replacement[4] = '${3} [ ${2} ]';
 
 	$pattern[6] = '/<li[^>]*>((.|\n)*)<\/li>/U';
-	$replacement[6] = "\n- " . '${1}';
+	$replacement[6] = "\n&#8658; " . '${1}';
 
 // I simply remove all emphasing tags: strong, b, em, i.
 
@@ -320,9 +372,9 @@ function xhtml2bare ($xhtml) // Todo: shouldn't I rather use again the xml parse
 	$pattern[5] = '/<br[^>]*>/';
 	$replacement[5] = "\n";
 
-// I remove all the other tags, as well as their content.
+// I remove all the other tags, but not their content.
 	$pattern[8] = '/<([^\s>]*)[^>]*>(.*)<\/\1>/';
-	$replacement[8] = '';
+	$replacement[8] = '${1}';
 
 	$pattern[9] = '/<[^>]*>/';
 	$replacement[9] = '';
