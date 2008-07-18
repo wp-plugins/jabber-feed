@@ -255,13 +255,13 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 				$num = array_pop ($stack);
 				if ($num == false)
 				{
-					$xhtmlim .= "&#8658; ";
+					$xhtmlim .= "\t&#8658; ";
 					array_push ($stack, false);
 					array_push ($stack, false);
 				}
 				else
 				{
-					$xhtmlim .= "#" . strval ($num) . "# ";
+					$xhtmlim .= "\t#" . strval ($num) . "# ";
 					array_push ($stack, $num + 1);
 					array_push ($stack, false);
 				}
@@ -345,7 +345,13 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 		$parse_status = xml_parse ($xml_parser, "<html>$xhtml</html>", TRUE);
 		xml_parser_free ($xml_parser);
 
-		$bare = $xhtmlim;
+		$pattern[0] = '/\n(\s*\n)+/';
+		$replacement[0] = "\n\n"; // no more than 2 white lines and ending white spaces (\t for <li>) kept.
+
+		$pattern[1] = "/\t+/";
+		$replacement[1] = "\t"; // but no more than one tab!
+
+		$bare = preg_replace ($pattern, $replacement, $xhtmlim);
 		$xhtmlim = "";
 		$stack = array ();
 
@@ -359,57 +365,66 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 	$pattern[0] = "/( |\t)+/";
 	$replacement[0] = ' ';
 
-	$pattern[1] = '/<p>(.*)<\/p>/U';
-	$replacement[1] = "\t" .'${1}' . "\n";
+	$pattern[1] = '/<p(\s[^>]*)?>((.|\n)*)<\/p\s*>/U';
+	$replacement[1] = "\t" .'${2}' . "\n";
 
-	$pattern[3] = '/<span[^>]*>(.*)<\/span>/U';
-	$replacement[3] = '${1}';
+	$pattern[3] = '/<span(\s[^>]*)?>((.|\n)*)<\/span\s*>/U';
+	$replacement[3] = '${2}';
 
-	$pattern[4] = '/<a\s+[^>]*href=(\'|")([^\'"]*)\1[^>]*>(.*)<\/a>/U'; // here is it possible ' or " in a url?
-	$replacement[4] = '${3} [ ${2} ]';
+	$pattern[4] = '/<a\s+[^>]*href=(\'|")([^\'"]*)\1[^>]*>((.|\n)*)<\/a\s*>/U'; // here is it possible ' or " in a url?
+	$replacement[4] = '${3} [ ${1} ]';
 
-	$pattern[6] = '/<li[^>]*>((.|\n)*)<\/li>/U';
-	$replacement[6] = "\n&#8658; " . '${1}';
+	$pattern[6] = '/<li(\s[^>]*)?>((.|\n)*)<\/li\s*>/U';
+	$replacement[6] = "\n\t&#8658; " . '${2}';
 
 // I simply remove all emphasing tags: strong, b, em, i.
 
-	$pattern[10] = '/<b>(.*)<\/b>/U';
-	$replacement[10] = '${1}';
+	$pattern[10] = '/<b(\s[^>]*)?>(.*)<\/b\s*>/U';
+	$replacement[10] = '${2}';
 
-	$pattern[11] = '/<em>(.*)<\/em>/U';
-	$replacement[11] = '${1}';
+	$pattern[11] = '/<em(\s[^>]*)?>(.*)<\/em\s*>/U';
+	$replacement[11] = '${2}';
 
-	$pattern[12] = '/<strong>(.*)<\/strong>/U';
-	$replacement[12] = '${1}';
+	$pattern[12] = '/<strong(\s[^>]*)?>(.*)<\/strong\s*>/U';
+	$replacement[12] = '${2}';
 
-	$pattern[13] = '/<i>(.*)<\/i>/U';
-	$replacement[13] = '${1}';
+	$pattern[13] = '/<i(\s[^>]*)?>(.*)<\/i\s*>/U';
+	$replacement[13] = '${2}';
 
-	$pattern[14] = '/<blockquote>((.|\n)*)<\/blockquote>/U';
-	$replacement[14] = "\n«\n" . '${1}' . "\n»\n";
+	$pattern[14] = '/<blockquote(\s[^>]*)?>((.|\n)*)<\/blockquote\s*>/U';
+	$replacement[14] = "\n«\n" . '${2}' . "\n»\n";
 
-	$pattern[15] = '/<code>((.|\n)*)<\/code>/U';
-	$replacement[15] = "\n«\n" . '${1}' . "\n»\n";
+	$pattern[15] = '/<code(\s[^>]*)?>((.|\n)*)<\/code\s*>/U';
+	$replacement[15] = "\n«\n" . '${2}' . "\n»\n";
 
-	$pattern[7] = '/<(ul|ol)[^>]*>((.|\n)*)<\/\1>/U';
-	$replacement[7] = '${2}' . "\n";
+	$pattern[7] = '/<(ul|ol)(\s[^>]*)?>((.|\n)*)<\/\1\s*>/U';
+	$replacement[7] = '${3}' . "\n";
 	// for ol, I may replace li by #somerandomnumber# then count the size and finally replace by X/.
 
-	$pattern[16] = '/(\s*\n)+/';
-	$replacement[16] = "\n";
+	//$pattern[16] = '/\n(\s|\n)+/';
+	//$replacement[16] = "\n";
 
-	$pattern[2] = '/<div[^>]*>(.*)<\/div>/U';
-	$replacement[2] = '${1}' . "\n";
+	$pattern[2] = '/<div(\s[^>]*)?>(.*)<\/div\s*>/U';
+	$replacement[2] = '${2}' . "\n";
 
 	$pattern[5] = '/<br[^>]*>/';
 	$replacement[5] = "\n";
 
+	$pattern[18] = '/<(h[1-6])[^>]*>(.*)<\/\1\s*>/U';
+	$replacement[18] = "\n=== " . '${2}' . " ===\n";
+
 // I remove all the other tags, but not their content.
-	$pattern[8] = '/<([^\s>]*)[^>]*>(.*)<\/\1>/';
-	$replacement[8] = '${1}';
+	$pattern[8] = '/<([^\s>]*)[^>]*>((.|\n)*)<\/\1>/U';
+	$replacement[8] = '${2}';
 
 	$pattern[9] = '/<[^>]*>/';
 	$replacement[9] = '';
+
+	$pattern[17] = '/\n(\s*\n)+/';
+	$replacement[17] = "\n\n"; // no more than 2 blank lines at once... And I keep the white characters after the last one (for \t of <li>).
+
+	$pattern[19] = "/\t+/";
+	$replacement[19] = "\t"; // but no more than one tab!
 
 	$bare = html_entity_decode ((preg_replace ($pattern, $replacement, $xhtml)), ENT_NOQUOTES, "UTF-8");
 

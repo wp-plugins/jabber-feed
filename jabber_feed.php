@@ -70,13 +70,13 @@ function xmpp_publish_post ($post_ID) // {{{
 
 	if (empty ($configuration['publish_xhtmlim']))
 	{
-		$feed_content = xhtml2bare ($feed_content);
-		$feed_excerpt = xhtml2bare ($feed_excerpt);
+		$feed_content = 'a'; //xhtml2bare ($feed_content);
+		$feed_excerpt = 'b' ;//xhtml2bare ($feed_excerpt);
 	}
 	else
 	{
-		$feed_content = xhtml2xhtmlim ($feed_content);
-		$feed_excerpt = xhtml2xhtmlim ($feed_excerpt);
+		$feed_content = 'c'; //xhtml2xhtmlim ($feed_content);
+		$feed_excerpt = 'd'; //xhtml2xhtmlim ($feed_excerpt);
 	}
 		
 	$xs = new xmpp_stream ($configuration['node'],
