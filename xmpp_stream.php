@@ -22,6 +22,13 @@ Jabber Feed is a plugin for the Wordpress diary engine.
 */
 
 require_once('Auth/SASL/DigestMD5.php');
+error_reporting(0);
+// See this: interesting for making logs, then display it!
+// http://fr2.php.net/manual/en/errorfunc.examples.php
+include_once "Net/DNS.php"; // For SRV Records. // Optional.
+/* Note: for some future, probably dns_get_record may be better as it implies no external extension.
+But currently it is not very portable (nor working under BSD, MAC, or Windows... For me Linux enough is OK, but maybe not for other people).
+*/
 require_once(dirname(__FILE__) . '/my_socket.php');
 require_once(dirname(__FILE__) . '/xmpp_utils.php');
 
@@ -48,8 +55,7 @@ class xmpp_stream // {{{
 	// The key is the mechanism name, and the value is the preference.
 	// The more securized, the preferred mechanism...
 	// For now will consider only the digest-md5 authentication.
-	private $known_auth = array ('DIGEST-MD5' => 10);
-		//, 'PLAIN' => 4);
+	private $known_auth = array ('DIGEST-MD5' => 10, 'CRAMMD5' =>7, 'PLAIN' => 4, 'ANONYMOUS' => 0);
 	private $chosen_mechanism = '';
 
 	private $current_cdata = '';
@@ -60,17 +66,55 @@ class xmpp_stream // {{{
 	private $flags = array ();
 
 	function __construct ($node, $domain, $password, $resource = 'bot',
-		$server = '', $port = 5222) // {{{
+		$server = '', $port = '') // {{{
 	{
 		$this->node = $node;
 		$this->domain = $domain;
 		$this->password = $password;
 		$this->resource = $resource;
-		if ($server == '')
-			$this->server = $domain;
+
+		if ($port == '' && $server == '')
+		{
+			if (class_exists ("NET_DNS_Resolver"))
+			{
+					//jabber_feed_log ("plouf");
+				$resolver = new Net_DNS_Resolver();
+				$response = $resolver->query('_xmpp-client._tcp.' . $this->domain, 'SRV');
+				if ($response)
+				{
+					/*foreach ($response->answer as $rr) {
+						$rr->display();
+					}*/
+					//jabber_feed_log ($response->answer[0]);
+					$rr = $response->answer[0];
+					$this->server = $rr->target;
+					$this->port = $rr->port;
+					//jabber_feed_log ($rr->target);
+					//jabber_feed_log ($rr->target . " + " . $rr->port . " from: " . $response->answer[0]);
+					/*echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
+					echo $this->server . ' *** ' . $this->port . '</p></div>';*/
+				}
+				else
+				{
+					//jabber_feed_log ("no response");
+					$this->port = 5222;
+				}
+			}
+			else
+				$this->port = 5222;
+		}
 		else
-			$this->server = $server;
-		$this->port = $port;
+		{
+			if ($server == '')
+				$this->server = $domain;
+			else
+				$this->server = $server;
+
+			if ($port == '')
+				$this->port = 5222;
+			else
+				$this->port = $port;
+		}
 	} // }}}
 
 	// For backwards compatibility in php4.
@@ -314,7 +358,11 @@ class xmpp_stream // {{{
 
 		$subnode = $this->subnode ($node);
 
+		/*
 		if ($subnode == false || $this->create_collection ($server, $subnode))
+		 */
+		// XXX: there is no more semantics in node name, so don't use directory semantics in node name
+		// (cf. section 12.13 of XEP-0060)
 		{
 			$iq_id = time () . rand ();
 			$this->ids['leaf'] = 'create' . $iq_id;
@@ -336,8 +384,8 @@ class xmpp_stream // {{{
 			return ($this->process_read ("leaf_creation_start_handler",
 				"leaf_creation_end_handler", 'leaf_created'));
 		}
-		else
-			return false;
+		/*else
+			return false;*/
 	} // }}}
 
 	function create_collection ($server, $node) // {{{
@@ -363,8 +411,11 @@ class xmpp_stream // {{{
 			return true;
 		// End of workaround.
 
-		$subnode = $this->subnode ($node);
+		/*$subnode = $this->subnode ($node);
 		if ($subnode == false || $this->create_collection ($server, $subnode))
+		 */
+		// XXX: there is no more semantics in node name, so don't use directory semantics in node name
+		// (cf. section 12.13 of XEP-0060)
 		{
 			$iq_id = time () . rand ();
 			$this->ids['collection'] = 'create' . $iq_id;
@@ -388,8 +439,8 @@ class xmpp_stream // {{{
 			return ($this->process_read ("collection_creation_start_handler",
 				"collection_creation_end_handler", 'collection_created'));
 		}
-		else
-			return false;
+		/*else
+			return false;*/
 	} // }}}
 
 	function node_type ($server, $node) // return false if not existing, "leaf" and "collection" otherwise! // {{{
@@ -513,8 +564,10 @@ class xmpp_stream // {{{
 	private function authentication_end_handler ($parser, $name) // {{{
 	{
 		$this->common_end_handler ();
-		if ($name == 'MECHANISM' && array_key_exists ($this->current_cdata, $this->known_auth))
+		jabber_feed_log ("authent " . $name . ": " . $this->current_cdata);
+		if ($name == 'MECHANISM' && array_key_exists (strtoupper ($this->current_cdata), $this->known_auth))
 		{
+			$this->current_cdata = strtoupper ($this->current_cdata);
 			if (empty ($this->chosen_mechanism) || $this->_known_auth[$this->current_cdata] > $this->known_auth[$this->chosen_mechanism])
 				$this->chosen_mechanism = $this->current_cdata;
 			return;
@@ -524,8 +577,29 @@ class xmpp_stream // {{{
 		{
 			// I get the challenge from cdata and decode it (base64).
 			$decoded_challenge = base64_decode ($this->current_cdata);
-			$sasl = new Auth_SASL_DigestMD5 ();
-			$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge, $this->domain, 'xmpp');
+			if ($this->chosen_mechanism == "DIGEST-MD5")
+			{
+				$sasl = new Auth_SASL_DigestMD5 ();
+				$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge, $this->domain, 'xmpp');
+			}
+			elseif ($this->chosen_mechanism == "CRAMMD5")
+			{
+				$sasl = new Auth_SASL_CramMD5 ();
+				$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge);
+				// To be tested. Should the first argument be full jid or just username?
+			}
+			elseif ($this->chosen_mechanism == "ANONYMOUS")
+			{
+				$sasl = new Auth_SASL_Anonymous ();
+				$uncoded = $sasl->getResponse ();
+			}
+			elseif ($this->chosen_mechanism == "PLAIN")
+			{
+				$sasl = new Auth_SASL_Plain ();
+				$uncoded = $sasl->getResponse ($this->node, $this->password);
+				// To be tested. Should the first argument be full jid or just username?
+			}
+
 			$coded = base64_encode ($uncoded);
 			$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'>' . $coded . '</response>';
 

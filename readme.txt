@@ -75,9 +75,14 @@ Then with PHP 4.3.X or PHP 5, you can install it as a PEAR module: `pecl install
 Without this, you won't have access to the XHTML-IM option and all
 notification will be sent as a normal textual message.
 
+* OPTIONAL: to use the SRV records on the admin JID, which is the correct way of resolving the
+server and port addresses for a domain, the PEAR extension NET_DNS must be
+installed: 'pear install NET_DNS' (Note that it will ask to have php compiled
+with 'mhash' option).
+
 = Working Platforms =
 
-This script has been tested only currently on Wordpress 2.0 and Wordpres 2.5 with PHP 5.2.1.
+This script has been tested only currently on Wordpress 2.0 up to Wordpres 2.7 with PHP 5.2.1.
 Hopefully it should work with other software versions (even PHP4), but I cannot guarantee.
 Tell me please if you tried this successfully with another configuration so that I update the known working platforms list.
 

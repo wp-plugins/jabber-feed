@@ -269,7 +269,7 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 			elseif ($name == "blockquote" || $name == "code")
 			{
 				array_push ($stack, false);
-				$xhtmlim .= "\nÂ«\n";
+				$xhtmlim .= "\n«\n";
 			}
 			else
 				array_push ($stack, false);
@@ -310,7 +310,7 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 			}
 			elseif ($name == "blockquote" || $name == "code")
 			{
-				$xhtmlim .= "\nÂ»\n";
+				$xhtmlim .= "\n»\n";
 				array_pop ($stack);
 			}
 			else
@@ -392,10 +392,10 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 	$replacement[13] = '${2}';
 
 	$pattern[14] = '/<blockquote(\s[^>]*)?>((.|\n)*)<\/blockquote\s*>/U';
-	$replacement[14] = "\nÂ«\n" . '${2}' . "\nÂ»\n";
+	$replacement[14] = "\n«\n" . '${2}' . "\n»\n";
 
 	$pattern[15] = '/<code(\s[^>]*)?>((.|\n)*)<\/code\s*>/U';
-	$replacement[15] = "\nÂ«\n" . '${2}' . "\nÂ»\n";
+	$replacement[15] = "\n«\n" . '${2}' . "\n»\n";
 
 	$pattern[7] = '/<(ul|ol)(\s[^>]*)?>((.|\n)*)<\/\1\s*>/U';
 	$replacement[7] = '${3}' . "\n";
@@ -428,7 +428,7 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 
 	$bare = html_entity_decode ((preg_replace ($pattern, $replacement, $xhtml)), ENT_NOQUOTES, "UTF-8");
 
-	// normalement, une fois le html dÃ©codÃ©, je retire < et &, non?
+	// normalement, une fois le html décodé, je retire < et &, non?
 	// http://www.journaldunet.com/developpeur/tutoriel/xml/041027-xml-caracteres-speciaux.shtml
 
 	$pattern2[1] = '/&/';
@@ -439,5 +439,28 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 
 	return (preg_replace ($pattern2, $replacement2, $bare));
 } // }}}
+
+
+/*
+ * Add the new entry $entry in the logs, with the current date.
+ */
+function jabber_feed_log ($entry)
+{
+	$date = date ('Y-m-d\TH:i:s+Z'); 
+
+	$error_msg = '**** ' . $date . " ****\n\n" . $entry . "\n\n";
+	error_log ($error_msg, 3, '/tmp/jabber_feed_errors.log');
+}
+
+/*
+ * What about a future feature of sending a message through Jabber to an admin JID when severa messages?
+ * Use the Jabber item in the user profile (exists already) and send to any guy with role administrator.
+ * $user_info = get_userdata(1); 
+ * http://codex.wordpress.org/Function_Reference/get_userdata
+ TODO: -> look in the db...
+ */
+function jabber_feed_error_send ($msg)
+{
+}
 
 ?>

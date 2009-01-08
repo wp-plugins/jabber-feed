@@ -277,15 +277,18 @@ function jabber_feed_configuration_page () // {{{
 		$configuration['password'] = strip_tags (trim($_POST['password']));
 
 		$posted_server = strip_tags (trim($_POST['server']));
-		if ($posted_server == '')
+		/*if ($posted_server == '')
 			$configuration['server'] = $configuration['domain'];
-		else
+		else*/
 			$configuration['server'] = $posted_server;
 		$posted_port = strip_tags (trim($_POST['port']));
-		if ($posted_port == '' || ! is_numeric ($posted_port))
+	/*	if ($posted_port == '' || ! is_numeric ($posted_port))
 			$configuration['port'] = 5222;
-		else
+		else*/
+		if (is_numeric ($posted_port))
 			$configuration['port'] = intval ($posted_port);
+		else
+			$configuration['port'] = '';
 
 		$configuration['pubsub_server'] = strip_tags (trim($_POST['pubsub_server']));
 		$configuration['pubsub_node'] = strip_tags (trim($_POST['pubsub_node']));
@@ -326,8 +329,8 @@ function jabber_feed_configuration_page () // {{{
 	<div class="wrap">
 		<?php //$history = get_option('jabber_feed_post_history');
 		//print_r ($history); // for tests!
-		$zeid = 68;
-		$zepost = get_post ($zeid, OBJECT);
+		//$zeid = 68;
+		//$zepost = get_post ($zeid, OBJECT);
 		//echo "CONTENT<br />";
 		//echo htmlentities($zepost->post_content);
 		//echo "EXCERPT<br />";
@@ -335,19 +338,20 @@ function jabber_feed_configuration_page () // {{{
 		//echo "FILTER<br />";
 		//echo htmlentities ($zepost->post_content_filtered);
 		//echo "END<br />";
-		$test = "<a la='plouf'>yo man &oelig;to<br>c";
-		echo "NORMAL<br/>";
-		echo htmlentities ($zepost->post_content);
+		//$test = "<a la='plouf'>yo man &oelig;to<br>c";
+		//echo "NORMAL<br/>";
+		//echo htmlentities ($zepost->post_content);
+		//jabber_feed_log ($zepost->post_content);
 		//echo htmlentities ($test);
-		echo "<br /><br />FIXED<br/>";
-		echo htmlentities (fixxhtml ($zepost->post_content));
+		//echo "<br /><br />FIXED<br/>";
+		//echo htmlentities (fixxhtml ($zepost->post_content));
 		//echo htmlentities (fixxhtml ($test));
-		echo "<br/><br />IM<br/>";
-		echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
+		//echo "<br/><br />IM<br/>";
+		//echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
 		//echo htmlentities (xhtml2xhtmlim ($test));
-		echo "<br/><br />bare<br/>";
+		//echo "<br/><br />bare<br/>";
 		//echo htmlentities (xhtml2bare ($test));
-		echo (xhtml2bare ($zepost->post_content));
+		//echo (xhtml2bare ($zepost->post_content));
 
 		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
@@ -383,6 +387,21 @@ function jabber_feed_configuration_page () // {{{
 			<fieldset class="options">
 				<legend><?php _e('Connection Parameters') ?></legend>
 				<p><em>These are advanced settings. If you don't understand them, they are probably useless and default values will be enough.</em></p>
+				<?php 
+				if (class_exists ("NET_DNS_Resolver"))
+				{
+					?>
+				<p><em>Note that SRV Records are used by default.</em></p>
+				<?php
+				}
+				else
+				{
+					?>
+					<p><em>SRV Records discovery option is not enabled because the PEAR module NET_DNS is not installed on this server.</em></p>
+					<?php
+				}
+		?>
+
 				<p><label>
 				<?php _e('Jabber Server') ?><br />
 					<input name="server"
@@ -480,13 +499,13 @@ function jabber_feed_configuration_page () // {{{
 					/>
 					<label for="publish_extract"><?php _e('Publish extract only <em>(when available)</em>') ?></label><br />
 
-					<input name="publish_xhtmlim"
+					<input name="publish_xhtml"
 						type="checkbox"
-						id="publish_xhtmlim"
+						id="publish_xhtml"
 						<?php
 						if (class_exists (tidy))
 						{
-							if (! empty ($configuration['publish_xhtmlim']))
+							if (! empty ($configuration['publish_xhtml']))
 							{
 						?>
 						checked="checked"
@@ -507,6 +526,22 @@ function jabber_feed_configuration_page () // {{{
 					</em>
 					<?php } ?>
 					</label><br />
+
+				<p>
+					<strong><?php _e('Publication Format:') ?></strong><br />
+					<input name="publish_as_atom"
+						type="checkbox"
+						id="publish_as_atom"
+						<?php
+						if (! empty ($configuration['publish_as_atom']))
+						{
+						?>
+						checked="checked"
+						<?php } ?>
+					/>
+					<label for="publish_posts"><?php _e('Publish in ATOM format') ?></label><br />
+
+				</p>
 			</fieldset>
 
 
