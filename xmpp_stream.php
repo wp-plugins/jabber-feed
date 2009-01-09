@@ -41,8 +41,8 @@ class xmpp_stream // {{{
 	// real jid obtained after authentication.
 	private $jid = '';
 
-	public $server = '';
-	public $port = '';
+	public $server = array ();
+	public $port = array ();
 	private $socket = null;
 
 	private $logged = false;
@@ -82,38 +82,43 @@ class xmpp_stream // {{{
 				$response = $resolver->query('_xmpp-client._tcp.' . $this->domain, 'SRV');
 				if ($response)
 				{
-					/*foreach ($response->answer as $rr) {
-						$rr->display();
-					}*/
-					//jabber_feed_log ($response->answer[0]);
-					$rr = $response->answer[0];
-					$this->server = $rr->target;
-					$this->port = $rr->port;
-					//jabber_feed_log ($rr->target);
-					//jabber_feed_log ($rr->target . " + " . $rr->port . " from: " . $response->answer[0]);
-					/*echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
-					echo $this->server . ' *** ' . $this->port . '</p></div>';*/
+					foreach ($response->answer as $rr)
+					{
+						//$rr->display();
+						//jabber_feed_log ($response->answer[0]);
+						//$rr = $response->answer[0];
+						$this->server[] = $rr->target;
+						$this->port[] = $rr->port;
+						//jabber_feed_log ($rr->target);
+						//jabber_feed_log ($rr->target . " + " . $rr->port . " from: " . $response->answer[0]);
+						/*echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
+						  echo $this->server . ' *** ' . $this->port . '</p></div>';*/
+					}
 				}
 				else
 				{
 					//jabber_feed_log ("no response");
-					$this->port = 5222;
+					$this->port[] = 5222;
+					$this->server[] = $domain;
 				}
 			}
 			else
-				$this->port = 5222;
+			{
+				$this->port[] = 5222;
+				$this->server[] = $domain;
+			}
 		}
 		else
 		{
 			if ($server == '')
-				$this->server = $domain;
+				$this->server[] = $domain;
 			else
-				$this->server = $server;
+				$this->server[] = $server;
 
 			if ($port == '')
-				$this->port = 5222;
+				$this->port[] = 5222;
 			else
-				$this->port = $port;
+				$this->port[] = $port;
 		}
 	} // }}}
 
@@ -152,16 +157,22 @@ class xmpp_stream // {{{
 	private function connect () // {{{
 	{
 		$this->socket = new my_socket ();
-		$this->socket->server = $this->server;
-		$this->socket->port = $this->port;
-
-		if (! $this->socket->connect ())
+		foreach ($this->server as $key => $server)
 		{
-			$this->last_error = __('Error during connection: ') . $this->socket->last_error;
-			return false;
+			$this->socket->server = $server;
+			$this->socket->port = $this->port[$key];
+
+			if (! $this->socket->connect ())
+			{
+				$this->last_error = __('Error during connection: ') . $this->socket->last_error;
+				//return false;
+				continue;
+			}
+
+			return true;
 		}
 
-		return true;
+		return false;
 	} // }}}
 	
 	private function authenticate () // {{{

@@ -277,10 +277,12 @@ function jabber_feed_configuration_page () // {{{
 		$configuration['password'] = strip_tags (trim($_POST['password']));
 
 		$posted_server = strip_tags (trim($_POST['server']));
+
 		/*if ($posted_server == '')
 			$configuration['server'] = $configuration['domain'];
 		else*/
-			$configuration['server'] = $posted_server;
+		$configuration['server'] = $posted_server;
+
 		$posted_port = strip_tags (trim($_POST['port']));
 	/*	if ($posted_port == '' || ! is_numeric ($posted_port))
 			$configuration['port'] = 5222;
