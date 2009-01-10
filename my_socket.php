@@ -41,11 +41,15 @@ class my_socket // {{{
 		// TODO: replace get_bloginfo by a portable function! This is a Wordpress' one.
 
 		$_socket = socket_create (AF_INET, SOCK_STREAM, SOL_TCP);
+		// XXX: $_socket = stream_socket_client ("tcp://" . $address . ":" . $port, $errno, $errstr, 2);
+		//, AF_INET, SOCK_STREAM, SOL_TCP);
 		if ($_socket === false)
 		{
 			$this->last_error = __('The socket could not be created.') . '<br />';
 			$this->last_error .= socket_strerror (socket_last_error ($_socket));
+			// $this->last_error .= "$errstr ($errno)";
 			socket_close ($_socket);
+			//fclose ($_socket);
 			return false;
 		}
 
@@ -92,6 +96,16 @@ class my_socket // {{{
 			socket_close ($_socket);
 			return false;
 		}
+
+		/*
+		if (! stream_set_blocking ($_socket,0))
+		{
+			$this->last_error = __('The socket could not be set in non-blocking mode.') . '<br />';
+			$this->last_error .= "$errstr ($errno)";
+			fclose ($_socket);
+			return false;
+		}
+		*/
 
 		$this->socket = $_socket;
 		return true;

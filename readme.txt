@@ -4,8 +4,8 @@ Contributors: Jehan Hysseo
 Donate link: http://jehan.zemarmot.net/blog/jabber-feed/
 Tags: jabber, xmpp, pubsub, xep-0060, notification, feed, posts, comments
 requires at least: 2.0
-Tested up to: 2.5.1
-Stable tag: 0.3
+Tested up to: 2.7.0
+Stable tag: 0.4
 
 This plugin feeds Jabber server pubsub nodes when new posts are published on
 Wordpress and comments are added.
@@ -25,6 +25,9 @@ be no harm! ;-), but I will provide far better versions progressively...
 
 = Detailed Features =
 
+* Connection with SRV records, TLS if available and known authentication
+mechanisms (in this order of preference): Digest-MD5, CramMD5, PLAIN,
+ANONYMOUS.
 * Posts are published on the subnode posts/ of the given pubsub node;
 * Comments are published on the subnode comments/<id> with <id> being the id
 of the corresponding post;
@@ -146,9 +149,19 @@ The fields are:
 
 = Connection Parameters =
 
-This is an advanced section in case your server uses a server which is not the
-one shown on the jid or a port different from the default one (5222).
-These are not mandatory fields. The default values will be used if empty.
+By default Jabber Feed can now use SRV records which is a recommended way to
+advertize server and port from a domain name (see for instance
+http://dns.vanrein.org/srv/ for details).
+
+This is an advanced section in case your server does not use SRV AND uses a server
+which is not the same as the domain from the jid or a port different from the default one (5222).
+
+Hence there will be very very new cases where you will have to fill this
+section and if you don't understand all what I say here, just don't fill
+anything here (if you fill even only one field, then it will be used instead
+of SRV and default values).
+
+The default values will be used if fields empty and no SRV is configured:
 
 * the Jabber server (often the same as 'myseveraddress' of the jid);
 * the Jabber port (usually 5222).
@@ -220,6 +233,11 @@ As explained, there are few, if none, clients with good PubSub support. This
 is why I told this plugin is more a proof of concept than an useful one. But
 hopefully, soon it will be better!
 
+= From myself: but no browser can detect XMPP autodiscovery links. What is the
+use of them here?!
+
+I am writting a small Firefox plugin for this. Soon more infos!
+
 = Do you like to ask questions to yourself? Do you feel lonely? =
 
 Maybe. ;-)
@@ -283,8 +301,11 @@ page, it does not remove it from the node. Why? Is it a bug from Wordpress
 which does not trigger the action in all cases? Or is there another Wordpress'
 action for this specific case? Try this also with posts from the "edit post"
 page.
+Edit: it seems to be a known bug: http://trac.wordpress.org/ticket/5792
+Is planned to be fixed for Wordpress 2.9 apparently.
 
-* Add more authentication mechanisms...
+* Add more authentication mechanisms? (current: Digest-MD5, CramMD5, PLAIN,
+ANONYMOUS. Only Digest-MD5 has been tested)
 
 * Add TLS?!
 
