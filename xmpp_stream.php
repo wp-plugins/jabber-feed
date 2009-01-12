@@ -22,7 +22,10 @@ Jabber Feed is a plugin for the Wordpress diary engine.
 */
 
 require_once('Auth/SASL/DigestMD5.php');
-error_reporting(0);
+require_once('Auth/SASL/Plain.php');
+require_once('Auth/SASL/CramMD5.php');
+require_once('Auth/SASL/Anonymous.php');
+//error_reporting(0);
 // See this: interesting for making logs, then display it!
 // http://fr2.php.net/manual/en/errorfunc.examples.php
 include_once "Net/DNS.php"; // For SRV Records. // Optional.
@@ -194,6 +197,9 @@ class xmpp_stream // {{{
 		return ($this->process_read ("authentication_start_handler",
 			"authentication_end_handler", 'authenticated'));
 
+		/*if (array_key_exists ('starttls', $this->flags))
+			return ($this->process_read ("authentication_start_handler",
+			"authentication_end_handler", 'authenticated'));*/
 	} // }}}
 
 	private function bind () // {{{
@@ -284,7 +290,6 @@ class xmpp_stream // {{{
 		$message .= "<published>" . $date . "</published><updated>" . $date . "</updated>";
 		// TODO: what about modified items for 'published' field??
 		$message .= "</entry></item></publish></pubsub></iq>";
-		jabber_feed_log ("Sent stanza: \n" . $message);
 
 		if (! $this->socket->send ($message))
 		{
@@ -510,32 +515,43 @@ class xmpp_stream // {{{
 				break;
 
 			$data = $this->socket->read ();
+			/*if (strlen ($data) != 0)
+				jabber_feed_log ('Incoming XML: ' . $data);*/
 
-			if (time () - $last_update > $this->timeout)
+			if ($data === FALSE)
 			{
-				$this->last_error =  __('Timeout of ') . ' ';
-				$this->last_error .= $this->timeout ;
-				$this->last_error .= ' ' . __('seconds.');
+				$this->last_error = __('Error while reading in the socket.');
+				jabber_feed_log ($this->last_error);
 				break;
 			}
 			elseif (strlen ($data) === 0)
+			{
+				if (time () - $last_update > $this->timeout)
+				{
+					$this->last_error =  __('Timeout of ') . ' ';
+					$this->last_error .= $this->timeout ;
+					$this->last_error .= ' ' . __('seconds.');
+					jabber_feed_log ($this->last_error);
+					break;
+				}
 				continue;
+			}
 			//elseif (!xml_parse($xml_parser, $data, FALSE))
 			elseif (xml_parse($xml_parser, $data, FALSE) == XML_STATUS_ERROR)
 			{
-				jabber_feed_log ('Incoming XML: ' . $data);
+				jabber_feed_log ('Incoming XML failed to parse: ' . $data);
 				$this->last_error = sprintf("XML parsing error %d %d: %s at line %d (\"%s\").",
 					xml_get_error_code ($xml_parser),
 					XML_ERROR_INVALID_TOKEN,
 					xml_error_string(xml_get_error_code ($xml_parser)),
 					xml_get_current_line_number ($xml_parser),
 					htmlentities ($data));
-					jabber_feed_log ($this->last_error);
+				jabber_feed_log ($this->last_error);
 				break;
 			}
 			else // data read on the socket and processed in the handlers if needed!
 			{
-			jabber_feed_log ('Incoming XML: ' . $data);
+				jabber_feed_log ('Incoming XML parsed: ' . $data);
 				$xmpp_last_update = time ();
 				continue;
 			}
@@ -581,12 +597,203 @@ class xmpp_stream // {{{
 	private function authentication_end_handler ($parser, $name) // {{{
 	{
 		$this->common_end_handler ();
-		jabber_feed_log ("authent " . $name . ": " . $this->current_cdata);
 		if ($name == 'STARTTLS')
 		{
 			$this->use_tls = true;
 			$this->flags['starttls'] = true;
+			return;
 		}
+		elseif ($name == 'MECHANISM' && array_key_exists (strtoupper ($this->current_cdata), $this->known_auth))
+		{
+			$this->current_cdata = strtoupper ($this->current_cdata);
+			if (empty ($this->chosen_mechanism) || $this->_known_auth[$this->current_cdata] > $this->known_auth[$this->chosen_mechanism])
+				$this->chosen_mechanism = $this->current_cdata;
+			return;
+		}
+		elseif ($name == 'CHALLENGE'
+			&& ! array_key_exists ('challenged_once', $this->flags))
+		{
+			// I get the challenge from cdata and decode it (base64).
+			$decoded_challenge = base64_decode ($this->current_cdata);
+			if ($this->chosen_mechanism == "DIGEST-MD5")
+			{
+				$sasl = new Auth_SASL_DigestMD5 ();
+				$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge, $this->domain, 'xmpp');
+
+				$coded = base64_encode ($uncoded);
+				$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'>' . $coded . '</response>';
+
+				if (! $this->socket->send ($response))
+				{
+					$this->last_error = __('Authentication failure: ');
+					$this->last_error .= $_socket->last_error;
+					$this->flags['authenticated'] = false;
+					return;
+				}
+
+			}
+			elseif ($this->chosen_mechanism == "CRAMMD5")
+			{
+				$sasl = new Auth_SASL_CramMD5 ();
+				$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge);
+				// To be tested. Should the first argument be full jid or just username?
+
+				$coded = base64_encode ($uncoded);
+				$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'>' . $coded . '</response>';
+
+				if (! $this->socket->send ($response))
+				{
+					$this->last_error = __('Authentication failure: ');
+					$this->last_error .= $_socket->last_error;
+					$this->flags['authenticated'] = false;
+					return;
+				}
+
+			}
+			elseif ($this->chosen_mechanism == "ANONYMOUS")
+			{
+				$sasl = new Auth_SASL_Anonymous ();
+				$uncoded = $sasl->getResponse ();
+			}
+
+			$this->flags['challenged_once'] = true;
+			return;
+		}
+		elseif ($name == 'CHALLENGE')
+		{
+			unset ($this->flags['challenged_once']);
+			$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'/>';
+			if (! $this->socket->send ($response))
+			{
+				$this->last_error = __('Authentication failure: ');
+				$this->last_error .= $_socket->last_error;
+				$this->flags['authenticated'] = false;
+				return;
+			}
+		}
+		elseif ($name == 'FAILURE' || $name == 'STREAM:STREAM')
+		{
+			$this->socket->send ('</stream:stream>');
+			$this->last_error = __('Authentication failure: wrong username or password.');
+			$this->flags['authenticated'] = false;
+			return;
+		}
+		elseif ($name == 'SUCCESS')
+		{
+			$this->flags['authenticated'] = true;
+			return;
+		}
+		elseif ($name == 'STREAM:FEATURES'
+				&& array_key_exists ('starttls', $this->flags))
+		{
+			// I must discard any information got before TLS negotiation.
+			$this->chosen_mechanism = '';
+
+			$tls_query = '<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"/>';
+			if (! $this->socket->send ($tls_query))
+			{
+				$this->last_error = __('Authentication failure: ');
+				$this->last_error .= $this->socket->last_error;
+				$this->flags['authenticated'] = false;
+				return;
+			}
+			return;
+		}
+		elseif ($name == 'PROCEED' // namespace?!! Test use_tls?
+				&& array_key_exists ('starttls', $this->flags))
+		{
+			unset ($this->flags['starttls']);
+
+			if (!$this->socket->encrypt ())
+			{
+				$this->last_error = __('Authentication failure: ');
+				$this->last_error .= $this->socket->last_error;
+				$this->flags['authenticated'] = false;
+				return;
+			}
+
+			jabber_feed_log ("Encrypted connection.");
+			
+			$stream_begin2 = "<stream:stream xmlns='jabber:client'
+				xmlns:stream='http://etherx.jabber.org/streams'
+				to='" . $this->domain .
+				"' version='1.0'>";
+
+			if (! $this->socket->send ($stream_begin2))
+			{
+				$this->last_error = __('Stream initiate failure after TLS successful: ');
+				$this->last_error .= $this->socket->last_error;
+				$this->quit ();
+				$this->flags['authenticated'] = false;
+				return;
+			}
+
+			if ($this->process_read ("authentication_tls_start_handler",
+						"authentication_tls_end_handler", 'authenticated_tls'))
+			{
+				$this->flags['authenticated'] = true;
+				return;
+			}
+			else
+			{
+				$this->flags['authenticated'] = false;
+				return;
+			}
+		}
+		elseif ($name == 'STREAM:FEATURES')
+		{
+			jabber_feed_log ("Chosen authentication mechanism: " . $this->chosen_mechanism);
+			if ($this->chosen_mechanism == '')
+			{
+				$this->last_error = __('No compatible authentication mechanism.');
+				jabber_feed_log ($this->last_error);
+				$this->flags['authenticated'] = false;
+			}
+			else
+			{
+				//jabber_feed_log ("plip");
+				if ($this->chosen_mechanism == "PLAIN")
+				{
+					$sasl = new Auth_SASL_Plain ();
+					$uncoded = $sasl->getResponse ($this->node . '@' . $this->domain, $this->password);
+					// To be tested. Should the first argument be full jid or just username?
+
+					$coded = base64_encode ($uncoded);
+					//$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'>' . $coded . '</response>';
+
+					if (! $this->socket->send ($response))
+					{
+						$this->last_error = __('Authentication failure: ');
+						$this->last_error .= $_socket->last_error;
+						$this->flags['authenticated'] = false;
+						return;
+					}
+
+					$mechanism = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>";
+					$mechanism .= $coded . "</auth>";
+				}
+				else
+				{
+					$mechanism = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl'";
+					$mechanism .= " mechanism='" . $this->chosen_mechanism . "' />";
+				}
+
+				$this->socket->send ($mechanism);
+			}
+			return;
+		}
+
+	} // }}}
+
+	private function authentication_tls_start_handler ($parser, $name, $attrs) // {{{
+	{
+		$this->common_start_handler ($name);
+	} // }}}
+
+	private function authentication_tls_end_handler ($parser, $name) // {{{
+	{
+		$this->common_end_handler ();
+
 		if ($name == 'MECHANISM' && array_key_exists (strtoupper ($this->current_cdata), $this->known_auth))
 		{
 			$this->current_cdata = strtoupper ($this->current_cdata);
@@ -615,12 +822,12 @@ class xmpp_stream // {{{
 				$sasl = new Auth_SASL_Anonymous ();
 				$uncoded = $sasl->getResponse ();
 			}
-			elseif ($this->chosen_mechanism == "PLAIN")
+			/*elseif ($this->chosen_mechanism == "PLAIN")
 			{
 				$sasl = new Auth_SASL_Plain ();
 				$uncoded = $sasl->getResponse ($this->node, $this->password);
 				// To be tested. Should the first argument be full jid or just username?
-			}
+			}*/
 
 			$coded = base64_encode ($uncoded);
 			$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'>' . $coded . '</response>';
@@ -629,7 +836,7 @@ class xmpp_stream // {{{
 			{
 				$this->last_error = __('Authentication failure: ');
 				$this->last_error .= $_socket->last_error;
-				$this->flags['authenticated'] = false;
+				$this->flags['authenticated_tls'] = false;
 				return;
 			}
 			
@@ -644,7 +851,7 @@ class xmpp_stream // {{{
 			{
 				$this->last_error = __('Authentication failure: ');
 				$this->last_error .= $_socket->last_error;
-				$this->flags['authenticated'] = false;
+				$this->flags['authenticated_tls'] = false;
 				return;
 			}
 		}
@@ -652,69 +859,65 @@ class xmpp_stream // {{{
 		{
 			$this->socket->send ('</stream:stream>');
 			$this->last_error = __('Authentication failure: wrong username or password.');
-			$this->flags['authenticated'] = false;
+			$this->flags['authenticated_tls'] = false;
 			return;
 		}
 		elseif ($name == 'SUCCESS')
-			$this->flags['authenticated'] = true;
-		elseif ($name == 'STREAM:FEATURES'
-				&& array_key_exists ('starttls', $this->flags))
 		{
-			unset ($this->flags['starttls']);
-			// I must discard any information got before TLS negotiation.
-			$this->chosen_mechanism = '';
-			$tls_query = '<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"/>';
-			if (! $this->socket->send ($tls_query))
-			{
-				$this->last_error = __('Authentication failure: ');
-				$this->last_error .= $this->socket->last_error;
-				$this->flags['authenticated'] = false;
-				return;
-			}
-
-		}
-		elseif ($name == 'PROCEED') // namespace?!!
-		{
-			if (!$this->socket->encrypt ())
-			{
-				$this->last_error = __('Authentication failure: ');
-				$this->last_error .= $this->socket->last_error;
-				$this->flags['authenticated'] = false;
-				return;
-			}
-
-			$stream_begin2 = "<stream:stream xmlns='jabber:client'
-				xmlns:stream='http://etherx.jabber.org/streams'
-				to='" . $this->domain .
-				"' version='1.0'>";
-
-			if (! $this->socket->send ($stream_begin2))
-			{
-				$this->last_error = __('Stream initiate failure after TLS successful: ');
-				$this->last_error .= $this->socket->last_error;
-				$this->quit ();
-				return false;
-			}
+			$this->flags['authenticated_tls'] = true;
+			return;
 		}
 		elseif ($name == 'STREAM:FEATURES')
 		{
+			jabber_feed_log ("Chosen authentication mechanism: " . $this->chosen_mechanism);
 			if ($this->chosen_mechanism == '')
 			{
 				$this->last_error = __('No compatible authentication mechanism.');
-				$this->flags['authenticated'] = false;
+				jabber_feed_log ($this->last_error);
+				$this->flags['authenticated_tls'] = false;
 			}
 			else
 			{
-				$mechanism = '<auth xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'';
-				$mechanism .= ' mechanism=\'' . $this->chosen_mechanism . '\' />';
+				//jabber_feed_log ("plop");
+				if ($this->chosen_mechanism == "PLAIN")
+				{
+					$sasl = new Auth_SASL_Plain ();
+					$uncoded = $sasl->getResponse ($this->node . '@' . $this->domain, $this->password);
+					// To be tested. Should the first argument be full jid or just username?
 
-				$this->socket->send ($mechanism);
+					$coded = base64_encode ($uncoded);
+					//$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'>' . $coded . '</response>';
+
+					if (! $this->socket->send ($response))
+					{
+						$this->last_error = __('Authentication failure: ');
+						$this->last_error .= $_socket->last_error;
+						$this->flags['authenticated'] = false;
+						return;
+					}
+
+					$mechanism = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>";
+					$mechanism .= $coded . "</auth>";
+				}
+				else
+				{
+					$mechanism = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl'";
+					$mechanism .= " mechanism='" . $this->chosen_mechanism . "' />";
+				}
+				//jabber_feed_log ("plop");
+				if (! $this->socket->send ($mechanism))
+				{
+					$this->last_error = __('Authentication failure: ');
+					$this->last_error .= $this->socket->last_error;
+					$this->flags['authenticated_tls'] = false;
+					return;
+				}
+				jabber_feed_log ("plop");
 			}
 			return;
 		}
 
 	} // }}}
-
 // Binding Resource //
 
 	private function binding_start_handler ($parser, $name, $attrs) // {{{

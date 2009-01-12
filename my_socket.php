@@ -115,13 +115,21 @@ class my_socket // {{{
 		if ($this->socket != null)
 		{
 			//return socket_read ($this->socket, 100, PHP_BINARY_READ);
-			return fread ($this->socket, 100);
+			//$received_data = fread ($this->socket, 100);
+			$received_data = fread ($this->socket, 8192);
+			// I read by block. Non-blocking mode does not seem to work in encrypted data...
+			//$received_data = stream_get_contents ($this->socket, 1);
+			if (strlen ($received_data) != 0)
+				jabber_feed_log ("Really received: \n" . $received_data);
+			return $received_data;
+			//return fread ($this->socket, 100);
 			//socket_recvfrom ($this->socket, $buf, 2000, MSG_DONTWAIT);
 			//return $buf;
 		}
 		else
 		{
 			$this->last_error = __('Trying to read in a null socket.');
+			jabber_feed_log ($this->last_error);
 			return FALSE;
 		}
 	} // }}}
@@ -131,18 +139,21 @@ class my_socket // {{{
 		if ($this->socket == null)
 		{
 			$this->last_error = __('Trying to write in a null socket.');
+			jabber_feed_log ($this->last_error);
 			return FALSE;
 		}
 
 		$data_length = strlen ($data);
 		$bytes_sent = 0;
+		jabber_feed_log ($data_length . " : " . $data);
 
 		$timeout = 2;
 		$last_update = time ();
 		while ($bytes_sent < $data_length)
 		{
 			//$new_bytes_sent = socket_write ($this->socket, $data);
-			$new_bytes_sent = fwrite ($this->socket, substr ($data, $byte_sent));
+			$new_bytes_sent = fwrite ($this->socket, $data); //substr ($data, $bytes_sent));
+		jabber_feed_log ($new_bytes_sent);
 			/* XXX: the sending over socket returns the number of *bytes*...
 				But substr writes about start *character*. This is not an issue *currently* because "Before PHP 6, a character is the same as a byte".
 				Yet in the future (PHP 6 so?), it can make an error if ever the $data is not fully sent in once, and it is stopped in the middle of a character (UTF-8 for instance, most common now). Of course, even in PHP6, this will be a rare case where we are pretty unlucky. Still it would be possible. */
@@ -151,18 +162,25 @@ class my_socket // {{{
 				$this->last_error = __('Data could not be sent.') . '<br />';
 				$this->last_error .= "$errstr ($errno)";
 				//$this->last_error .= socket_strerror (socket_last_error ($this->socket));
+				jabber_feed_log ("Error in sent stanza: \n" . $data);
 				return FALSE;
 			}
 			elseif ($new_bytes_sent > 0)
+			{
+				jabber_feed_log ("Sent " . $new_bytes_sent . " characters");
+				$bytes_sent += $new_bytes_sent;
 				$last_update = time ();
+				continue;
+			}
 			elseif ($time () - $last_update > $timeout)
 			{
 				$this->last_error = __('Timeout during a data transfer');
+				jabber_feed_log ("Timeout in sent stanza: \n" . $data);
 				return FALSE;
 			}
-
-			$bytes_sent += $new_bytes_sent;
+		jabber_feed_log ($new_bytes_sent);
 		}
+		jabber_feed_log ("Sent stanza: \n" . $data);
 		return TRUE;
 	} // }}}
 
@@ -197,7 +215,14 @@ class my_socket // {{{
 			// Probably feature not implemented.
 			// So as a special workaround, I try SSL instead...
 			// It seems to work on other servers (jabber.org works with both TLS and SSL).
-			stream_set_blocking ($this->socket, 0);
+			//stream_set_blocking ($this->socket, 0);
+			if (! stream_set_blocking ($this->socket, 0))
+			{
+				$this->last_error = __('The socket could not be set in non-blocking mode after encryption.') . '<br />';
+				$this->last_error .= "$errstr ($errno)";
+				fclose ($this->socket);
+				return FALSE;
+			}
 			return TRUE;
 		}
 		else
