@@ -163,7 +163,8 @@ section and if you don't understand all what I say here, just don't fill
 anything here (if you fill even only one field, then it will be used instead
 of SRV and default values).
 
-The default values will be used if fields empty and no SRV is configured:
+The default values will be used if fields empty and no SRV is configured on
+the Jabber server:
 
 * the Jabber server (often the same as 'myseveraddress' of the jid);
 * the Jabber port (usually 5222).
@@ -180,6 +181,10 @@ Note that this node does not have to exist. When you will press the "Update"
 button, the providden Jabber login and connection parameters will be tested
 and the node will be created with all its tree. If anything goes wrong, you
 will be informed about it.
+
+The providden Jabber account can have no right to create the required post/
+node, but then it must be created first and publisher rights at least must
+have been given.
 
 == Manage Posts ==
 
@@ -285,7 +290,7 @@ answering to a post by directly publishing to the node?
 But how is a publisher identified?! No "from" with a pseudo in it, and data
 about real jid accessible from admin.
 
-* Add xmtml-im support for the messages sent. Anyway improve globally the
+* Improve globally the
 message syntax (for instance the message 'updated' and 'created' tags).
 
 * Configure the node instead of simply create it with default configuration.
@@ -307,16 +312,10 @@ Edit: it seems to be a known bug: http://trac.wordpress.org/ticket/5792
 Is planned to be fixed for Wordpress 2.9 apparently.
 
 * Add more authentication mechanisms? (current: Digest-MD5, CramMD5, PLAIN,
-ANONYMOUS. Only Digest-MD5 has been tested)
+ANONYMOUS. Only Digest-MD5 and PLAIN has been tested)
 
-* Add TLS?!
-
-* Advanced options:
-	- xhtml-im (if tidy library unavailable, this is grayed by default with a
-	message): bare version is sent anyway for clients not understanding
-	xhtmlim.
-	- if excerpt available, send this instead.
-	- if <!--more--> set, send only post's part before the tag.
+* SSLv23 added (TLS does not work on Gmail. SSL and TLS works on ejabberd. So
+I have decided to use SSL only for now).
 
 == Contacts ==
 
