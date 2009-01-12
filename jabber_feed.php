@@ -52,6 +52,7 @@ function xmpp_publish_post ($post_ID) // {{{
 	$feed_content = '';
 	$feed_excerpt = '';
 	$link = $post->guid;
+	$publishxhtml = true;
 
 	if (empty ($configuration['publish_extract']))
 		$feed_content = $post_content;
@@ -68,16 +69,22 @@ function xmpp_publish_post ($post_ID) // {{{
 		$feed_excerpt = preg_replace ($pattern, $replacement, $post_content, 1);//, $count_rep);
 	}
 
-	if (empty ($configuration['publish_xhtmlim']))
+	/*if (empty ($configuration['publish_xhtmlim']))
 	{
 		$feed_content = 'a'; //xhtml2bare ($feed_content);
 		$feed_excerpt = 'b' ;//xhtml2bare ($feed_excerpt);
+	}*/
+	if (empty ($configuration['publish_xhtml']))
+		$publishxhtml = false; 
+	/*{
+		$feed_content = xhtml2bare ($feed_content);
+		$feed_excerpt = xhtml2bare ($feed_excerpt);
 	}
 	else
 	{
-		$feed_content = 'c'; //xhtml2xhtmlim ($feed_content);
-		$feed_excerpt = 'd'; //xhtml2xhtmlim ($feed_excerpt);
-	}
+		$feed_content = fixxhtml ($feed_content);
+		$feed_excerpt = fixxhtml ($feed_excerpt);
+	} */
 		
 	$xs = new xmpp_stream ($configuration['node'],
 		$configuration['domain'], $configuration['password'],
@@ -89,7 +96,7 @@ function xmpp_publish_post ($post_ID) // {{{
 		&& $xs->notify ($configuration['pubsub_server'],
 			$configuration['pubsub_node'] . '/posts', $post_ID, $feed_title,
 			//$link, $feed_content, $feed_excerpt)
-			$link, $feed_content, $feed_excerpt)
+			$link, $feed_content, $feed_excerpt, $publishxhtml)
 		 && $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID)
 		&& $xs->quit ()))
 	{
@@ -300,7 +307,8 @@ function jabber_feed_configuration_page () // {{{
 		//$configuration['publish_pages'] = strip_tags (trim($_POST['publish_pages']));
 
 		$configuration['publish_extract'] = strip_tags (trim($_POST['publish_extract']));
-		$configuration['publish_xhtmlim'] = strip_tags (trim($_POST['publish_xhtmlim']));
+		//$configuration['publish_xhtmlim'] = strip_tags (trim($_POST['publish_xhtmlim']));
+		$configuration['publish_xhtml'] = strip_tags (trim($_POST['publish_xhtml']));
 
 		$xs = new xmpp_stream ($configuration['node'],
 			$configuration['domain'], $configuration['password'],
@@ -471,6 +479,7 @@ function jabber_feed_configuration_page () // {{{
 					/>
 					<label for="publish_comments"><?php _e('Publish comments') ?></label><br />
 
+					<?php /*
 					<input name="publish_pages"
 						type="checkbox"
 						id="publish_pages"
@@ -483,6 +492,7 @@ function jabber_feed_configuration_page () // {{{
 						disabled="disabled"
 					/>
 					<label for="publish_pages"><?php _e('Publish pages (feature not yet implemented)') ?></label><br />
+					*/ ?>
 			
 				</p>
 			</fieldset>
@@ -520,6 +530,7 @@ function jabber_feed_configuration_page () // {{{
 						disabled="disabled"
 						<?php } ?>
 					/>
+					<?php /*
 					<label for="publish_xhtmlim"><?php _e('Format message in XHTML-IM <em>(the textual version is also sent)</em>.');
 					if (! class_exists (tidy))
 					{ ?>
@@ -528,7 +539,17 @@ function jabber_feed_configuration_page () // {{{
 					</em>
 					<?php } ?>
 					</label><br />
+					*/ ?>
+					<label for="publish_xhtml"><?php _e('Format message in XHTML <em>(the textual version is also sent)</em>.');
+					if (! class_exists (tidy))
+					{ ?>
+					<br /> <em>
+					<?php	_e ('This feature is disabled because the "tidy" library is missing on this system (read the prerequisites for more information).') ?>
+					</em>
+					<?php } ?>
+					</label><br />
 
+				<?php /*
 				<p>
 					<strong><?php _e('Publication Format:') ?></strong><br />
 					<input name="publish_as_atom"
@@ -544,6 +565,7 @@ function jabber_feed_configuration_page () // {{{
 					<label for="publish_posts"><?php _e('Publish in ATOM format') ?></label><br />
 
 				</p>
+				*/ ?>
 			</fieldset>
 
 

@@ -40,23 +40,22 @@ class my_socket // {{{
 		$self_address = gethostbyname (parse_url (get_bloginfo ('url'), PHP_URL_HOST));
 		// TODO: replace get_bloginfo by a portable function! This is a Wordpress' one.
 
-		$_socket = socket_create (AF_INET, SOCK_STREAM, SOL_TCP);
-		// XXX: $_socket = stream_socket_client ("tcp://" . $address . ":" . $port, $errno, $errstr, 2);
-		//, AF_INET, SOCK_STREAM, SOL_TCP);
+		//$_socket = socket_create (AF_INET, SOCK_STREAM, SOL_TCP);
+		$_socket = stream_socket_client ("tcp://" . $address . ":" . $this->port, $errno, $errstr, 2);
 		if ($_socket === false)
 		{
 			$this->last_error = __('The socket could not be created.') . '<br />';
-			$this->last_error .= socket_strerror (socket_last_error ($_socket));
-			// $this->last_error .= "$errstr ($errno)";
-			socket_close ($_socket);
-			//fclose ($_socket);
+			//$this->last_error .= socket_strerror (socket_last_error ($_socket));
+			$this->last_error .= "$errstr ($errno)";
+			//socket_close ($_socket);
+			fclose ($_socket);
 			return false;
 		}
 
 		// I am generating a random port number 10 times among the ephemereal ports.
 		// I won't check the local port range (/proc/sys/net/ipv4/ip_local_port_range on Linux) for now (TODO).
 		// I will basically consider the range being between 32768 and 61000.
-		$unbound = true;
+		/*$unbound = true;
 		for ($i = 1; $i <= 10; $i++)
 		{
 			// As of PHP >= 4.2.0, no need to run srand!
@@ -96,16 +95,16 @@ class my_socket // {{{
 			socket_close ($_socket);
 			return false;
 		}
+		*/
 
-		/*
-		if (! stream_set_blocking ($_socket,0))
+		
+		if (! stream_set_blocking ($_socket, 0))
 		{
 			$this->last_error = __('The socket could not be set in non-blocking mode.') . '<br />';
 			$this->last_error .= "$errstr ($errno)";
 			fclose ($_socket);
 			return false;
 		}
-		*/
 
 		$this->socket = $_socket;
 		return true;
@@ -115,7 +114,8 @@ class my_socket // {{{
 	{
 		if ($this->socket != null)
 		{
-			return socket_read ($this->socket, 100, PHP_BINARY_READ);
+			//return socket_read ($this->socket, 100, PHP_BINARY_READ);
+			return fread ($this->socket, 100);
 			//socket_recvfrom ($this->socket, $buf, 2000, MSG_DONTWAIT);
 			//return $buf;
 		}
@@ -141,11 +141,16 @@ class my_socket // {{{
 		$last_update = time ();
 		while ($bytes_sent < $data_length)
 		{
-			$new_bytes_sent = socket_write ($this->socket, $data);
+			//$new_bytes_sent = socket_write ($this->socket, $data);
+			$new_bytes_sent = fwrite ($this->socket, substr ($data, $byte_sent));
+			/* XXX: the sending over socket returns the number of *bytes*...
+				But substr writes about start *character*. This is not an issue *currently* because "Before PHP 6, a character is the same as a byte".
+				Yet in the future (PHP 6 so?), it can make an error if ever the $data is not fully sent in once, and it is stopped in the middle of a character (UTF-8 for instance, most common now). Of course, even in PHP6, this will be a rare case where we are pretty unlucky. Still it would be possible. */
 			if ($new_bytes_sent === FALSE)
 			{
 				$this->last_error = __('Data could not be sent.') . '<br />';
-				$this->last_error .= socket_strerror (socket_last_error ($this->socket));
+				$this->last_error .= "$errstr ($errno)";
+				//$this->last_error .= socket_strerror (socket_last_error ($this->socket));
 				return FALSE;
 			}
 			elseif ($new_bytes_sent > 0)
@@ -166,10 +171,49 @@ class my_socket // {{{
 		if ($this->socket == null)
 			return FALSE;
 		
-		socket_shutdown ($this->socket, 2);
-		socket_close ($this->socket);
+		//socket_shutdown ($this->socket, 2);
+		//socket_close ($this->socket);
+		fclose ($this->socket);
 		return true;
 	} // }}}
+
+	function encrypt () // {{{
+	{
+		if ($this->socket == null)
+		{
+			$this->last_error = __('Trying to encrypt a null socket.');
+			return FALSE;
+		}
+
+		stream_set_blocking ($this->socket, 1);
+		/*if (stream_socket_enable_crypto ($this->socket, TRUE, STREAM_CRYPTO_METHOD_TLS_CLIENT))
+		{
+			stream_set_blocking ($this->socket, 0);
+			return TRUE;
+		} */
+		if (stream_socket_enable_crypto ($this->socket, TRUE, STREAM_CRYPTO_METHOD_SSLv23_CLIENT))
+		{
+			// XXX: why does # STREAM_CRYPTO_METHOD_TLS_CLIENT does not work in Gmail?!
+			// Probably feature not implemented.
+			// So as a special workaround, I try SSL instead...
+			// It seems to work on other servers (jabber.org works with both TLS and SSL).
+			stream_set_blocking ($this->socket, 0);
+			return TRUE;
+		}
+		else
+		{
+			// If neither TLS not SSL worked...
+			$this->last_error = __('TLS negotiation failed.') . '<br />';
+			return FALSE;
+		}
+		/* There is 2 wrong returns: either FALSE, which means negotiation failed,
+			or 0 if there isn't enough data and you should try again (only for non-blocking sockets).
+			As this is a bot, and there is no human interaction, the second case is also wrong for us, so I don't distinguate them (but maybe would it be better for debugging?)...
+
+			XXX: Note that I think that this implementation does not include the certificate validation (or else what happens if the validation fails, should'nt it allow us to possibly validate manually the certificate by showing it to the user? This last point in particular is to check...
+			*/
+	} // }}}
+
 
 } // }}}
 

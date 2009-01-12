@@ -44,6 +44,7 @@ function fixxhtml ($badxhtml) // {{{
 	}
 	else
 		return false;
+	// TODO: make a manual (but probably less powerful) method for tidy library is not installed?
 
 	//$tidy = new tidy;
 	//$tidy->parseString($xhtml, $config, 'utf8');
@@ -269,7 +270,7 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 			elseif ($name == "blockquote" || $name == "code")
 			{
 				array_push ($stack, false);
-				$xhtmlim .= "\n«\n";
+				$xhtmlim .= "\nÂ«\n";
 			}
 			else
 				array_push ($stack, false);
@@ -310,7 +311,7 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 			}
 			elseif ($name == "blockquote" || $name == "code")
 			{
-				$xhtmlim .= "\n»\n";
+				$xhtmlim .= "\nÂ»\n";
 				array_pop ($stack);
 			}
 			else
@@ -392,10 +393,10 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 	$replacement[13] = '${2}';
 
 	$pattern[14] = '/<blockquote(\s[^>]*)?>((.|\n)*)<\/blockquote\s*>/U';
-	$replacement[14] = "\n«\n" . '${2}' . "\n»\n";
+	$replacement[14] = "\nÂ«\n" . '${2}' . "\nÂ»\n";
 
 	$pattern[15] = '/<code(\s[^>]*)?>((.|\n)*)<\/code\s*>/U';
-	$replacement[15] = "\n«\n" . '${2}' . "\n»\n";
+	$replacement[15] = "\nÂ«\n" . '${2}' . "\nÂ»\n";
 
 	$pattern[7] = '/<(ul|ol)(\s[^>]*)?>((.|\n)*)<\/\1\s*>/U';
 	$replacement[7] = '${3}' . "\n";

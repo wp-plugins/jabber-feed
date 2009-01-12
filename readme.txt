@@ -18,7 +18,7 @@ Jabber when a new post is published.
 
 It enables also to do the same with comments on separated xmpp pubsub nodes, so
 that readers can also subscribe and get notified about new comments of a
-specific post.
+specific post only if prefered.
 
 Note: this is a early version, you can try it if you are interested (there can
 be no harm! ;-), but I will provide far better versions progressively...
@@ -70,23 +70,25 @@ Note for gentoo users: you must set the 'xml' USE flag.
 
 * It uses the `Auth_SASL PEAR` module (`pear install Auth_SASL` or install with your distribution's package manager) for SASL authentication. For now, this dependency is mandatory because this is the only supported authentication mechanism. Maybe in some future will it become optional.
 
-* OPTIONAL: to have the option of sending formated notification with XHTML-IM
-(XEP-0071), the "tidy" PECL extension must be installed. It is based on the libtidy
-library which must first be installed: http://tidy.sourceforge.net/
+* OPTIONAL: to have the option of sending formated notification in XHTML, the "tidy" PECL extension must be installed.
+It is based on the libtidy library which must first be installed: http://tidy.sourceforge.net/
 Then with PHP 4.3.X or PHP 5, you can install it as a PEAR module: `pecl install tidy`; or with the
 `--with-tidy` compilation option in PHP 5.
-Without this, you won't have access to the XHTML-IM option and all
-notification will be sent as a normal textual message.
+Without this, you won't have access to the XHTML option and all notifications will be sent as a normal textual message.
 
 * OPTIONAL: to use the SRV records on the admin JID, which is the correct way of resolving the
 server and port addresses for a domain, the PEAR extension NET_DNS must be
 installed: 'pear install NET_DNS' (Note that it will ask to have php compiled
 with 'mhash' option).
+Note for gentoo users: you must set the 'mhash' USE flag.
 
 = Working Platforms =
 
 This script has been tested only currently on Wordpress 2.0 up to Wordpres 2.7 with PHP 5.2.1.
-Hopefully it should work with other software versions (even PHP4), but I cannot guarantee.
+Hopefully it should work with other software versions (not for PHP4, because
+of the TLS feature with is PHP5 specific. Yet if you are really interested
+into PHP4 compatibility and if TLS is not required for your connection, just
+ask me, I will try to make a compatibility layer), but I cannot guarantee.
 Tell me please if you tried this successfully with another configuration so that I update the known working platforms list.
 
 At the opposite, if you find a bug or encounter an issue on some configuration, don't hesitate to tell me, and I will try and fix it.

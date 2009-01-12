@@ -57,6 +57,7 @@ class xmpp_stream // {{{
 	// For now will consider only the digest-md5 authentication.
 	private $known_auth = array ('DIGEST-MD5' => 10, 'CRAMMD5' =>7, 'PLAIN' => 4, 'ANONYMOUS' => 0);
 	private $chosen_mechanism = '';
+	private $use_tls = false;
 
 	private $current_cdata = '';
 	private $features = array ();
@@ -239,7 +240,7 @@ class xmpp_stream // {{{
 	} // }}}
 
 	function notify ($server, $node, $id, $title, $link,
-		$content = '', $excerpt = '', $xhtmlim = true) // {{{
+		$content = '', $excerpt = '', $xhtml = true) // {{{
 	{
 		if (! $this->create_leaf ($server, $node))
 			return false;
@@ -270,10 +271,11 @@ class xmpp_stream // {{{
 			//$message .= ']]></div></content>';
 		if ($content !== '')
 		{
-			if ($xhtmlim)
-				$message .= '<content type="xhtml"><html xmlns="http://jabber.org/protocol/xhtml-im">' . xhtml2xhtmlim ($content) . '</html></content>';
+			if ($xhtml)
+				$message .= '<content type="xhtml"><html xmlns="http://www.w3.org/1999/xhtml">' . fixxhtml ($content) . '</html></content>';
+				
 			
-			$message .= "<content>" . xhtml2bare ($content) . "</content>";
+			$message .= '<content>' . xhtml2bare ($content) . "</content>";
 		}
 
       $message .= '<link rel="alternate" type="text/html" href="';
@@ -282,6 +284,7 @@ class xmpp_stream // {{{
 		$message .= "<published>" . $date . "</published><updated>" . $date . "</updated>";
 		// TODO: what about modified items for 'published' field??
 		$message .= "</entry></item></publish></pubsub></iq>";
+		jabber_feed_log ("Sent stanza: \n" . $message);
 
 		if (! $this->socket->send ($message))
 		{
@@ -475,7 +478,7 @@ class xmpp_stream // {{{
 			"node_info_end_handler", 'node_type'));
 	} // }}}
 
-// this function returns "root1/root2" if you give it "root1/root2/node" and return false if you give ''
+// this function returns "root1/root2" if you give it "root1/root2/node" and returns false if you give ''
 	private function subnode ($node) // {{{
 	{
 		$pattern_root = '/^\/*$/';
@@ -520,16 +523,19 @@ class xmpp_stream // {{{
 			//elseif (!xml_parse($xml_parser, $data, FALSE))
 			elseif (xml_parse($xml_parser, $data, FALSE) == XML_STATUS_ERROR)
 			{
+				jabber_feed_log ('Incoming XML: ' . $data);
 				$this->last_error = sprintf("XML parsing error %d %d: %s at line %d (\"%s\").",
 					xml_get_error_code ($xml_parser),
 					XML_ERROR_INVALID_TOKEN,
 					xml_error_string(xml_get_error_code ($xml_parser)),
 					xml_get_current_line_number ($xml_parser),
 					htmlentities ($data));
+					jabber_feed_log ($this->last_error);
 				break;
 			}
 			else // data read on the socket and processed in the handlers if needed!
 			{
+			jabber_feed_log ('Incoming XML: ' . $data);
 				$xmpp_last_update = time ();
 				continue;
 			}
@@ -576,6 +582,11 @@ class xmpp_stream // {{{
 	{
 		$this->common_end_handler ();
 		jabber_feed_log ("authent " . $name . ": " . $this->current_cdata);
+		if ($name == 'STARTTLS')
+		{
+			$this->use_tls = true;
+			$this->flags['starttls'] = true;
+		}
 		if ($name == 'MECHANISM' && array_key_exists (strtoupper ($this->current_cdata), $this->known_auth))
 		{
 			$this->current_cdata = strtoupper ($this->current_cdata);
@@ -646,6 +657,45 @@ class xmpp_stream // {{{
 		}
 		elseif ($name == 'SUCCESS')
 			$this->flags['authenticated'] = true;
+		elseif ($name == 'STREAM:FEATURES'
+				&& array_key_exists ('starttls', $this->flags))
+		{
+			unset ($this->flags['starttls']);
+			// I must discard any information got before TLS negotiation.
+			$this->chosen_mechanism = '';
+			$tls_query = '<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"/>';
+			if (! $this->socket->send ($tls_query))
+			{
+				$this->last_error = __('Authentication failure: ');
+				$this->last_error .= $this->socket->last_error;
+				$this->flags['authenticated'] = false;
+				return;
+			}
+
+		}
+		elseif ($name == 'PROCEED') // namespace?!!
+		{
+			if (!$this->socket->encrypt ())
+			{
+				$this->last_error = __('Authentication failure: ');
+				$this->last_error .= $this->socket->last_error;
+				$this->flags['authenticated'] = false;
+				return;
+			}
+
+			$stream_begin2 = "<stream:stream xmlns='jabber:client'
+				xmlns:stream='http://etherx.jabber.org/streams'
+				to='" . $this->domain .
+				"' version='1.0'>";
+
+			if (! $this->socket->send ($stream_begin2))
+			{
+				$this->last_error = __('Stream initiate failure after TLS successful: ');
+				$this->last_error .= $this->socket->last_error;
+				$this->quit ();
+				return false;
+			}
+		}
 		elseif ($name == 'STREAM:FEATURES')
 		{
 			if ($this->chosen_mechanism == '')
