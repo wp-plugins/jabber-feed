@@ -25,10 +25,11 @@ require_once('Auth/SASL/DigestMD5.php');
 require_once('Auth/SASL/Plain.php');
 require_once('Auth/SASL/CramMD5.php');
 require_once('Auth/SASL/Anonymous.php');
-//error_reporting(0);
 // See this: interesting for making logs, then display it!
 // http://fr2.php.net/manual/en/errorfunc.examples.php
+$old_error_level = error_reporting(0);
 include_once "Net/DNS.php"; // For SRV Records. // Optional.
+error_reporting($old_error_level);
 /* Note: for some future, probably dns_get_record may be better as it implies no external extension.
 But currently it is not very portable (nor working under BSD, MAC, or Windows... For me Linux enough is OK, but maybe not for other people).
 */

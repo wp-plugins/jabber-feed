@@ -72,7 +72,7 @@ Note for gentoo users: you must set the 'xml' USE flag.
 
 * OPTIONAL: to have the option of sending formated notification in XHTML, the "tidy" PECL extension must be installed.
 It is based on the libtidy library which must first be installed: http://tidy.sourceforge.net/
-Then with PHP 4.3.X or PHP 5, you can install it as a PEAR module: `pecl install tidy`; or with the
+Then with PHP 4.3.X or PHP 5, you can install it as a PECL module: `pecl install tidy`; or with the
 `--with-tidy` compilation option in PHP 5.
 Without this, you won't have access to the XHTML option and all notifications will be sent as a normal textual message.
 
@@ -240,8 +240,7 @@ As explained, there are few, if none, clients with good PubSub support. This
 is why I told this plugin is more a proof of concept than an useful one. But
 hopefully, soon it will be better!
 
-= From myself: but no browser can detect XMPP autodiscovery links. What is the
-use of them here?!
+= From myself: but no browser can detect XMPP autodiscovery links. What are they for?! =
 
 I am writting a small Firefox plugin for this. Soon more infos!
 
@@ -319,7 +318,10 @@ I have decided to use SSL only for now).
 
 == Contacts ==
 
-You can have some news about this plugin on [my freedom haven](http://jehan.zemarmot.net "my public diary") or of course, soon by subscribing on a xmpp pubsub node.
+You can have some news about this plugin on [my freedom
+haven](http://jehan.zemarmot.net "my public diary") or of course, by
+subscribing on the following xmpp pubsub node:
+http://jehan.zemarmot.net/blog/category/technologies/programmation/jabber-feed/feed/
 If you want to contact me by jabber, ask me first by email (which you can find
 on my website. Yes I know, this is complicated: but I like my tranquility, so
 I make a filter).
