@@ -262,6 +262,11 @@ the p tag of class 'postmetadata alt' in the default theme).
 
 == Todo ==
 
+* Still need to test extensively (and if necessary improve) the right system
+in Wordpress:
+	- will the non-approved comments be published on the comment nodes?
+	- will the private posts be published?
+
 * In the "configuration" window, I should make a detection of the
 prerequisites, gray everything if a mandatory one is not fulfilled and give an
 explanation text.

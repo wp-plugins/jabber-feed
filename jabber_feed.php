@@ -54,6 +54,9 @@ function xmpp_publish_post ($post_ID) // {{{
 	$link = $post->guid;
 	$publishxhtml = true;
 
+	$count_posts = wp_count_posts ();
+	$published_posts = $count_posts->publish;
+
 	if (empty ($configuration['publish_extract']))
 		$feed_content = $post_content;
 	elseif (! empty ($post_excerpt))
@@ -93,12 +96,15 @@ function xmpp_publish_post ($post_ID) // {{{
 	$history = get_option('jabber_feed_post_history');
 
 	if (! ($xs->log ()
-		&& $xs->notify ($configuration['pubsub_server'],
-			$configuration['pubsub_node'] . '/posts', $post_ID, $feed_title,
-			//$link, $feed_content, $feed_excerpt)
-			$link, $feed_content, $feed_excerpt, $publishxhtml)
-		 && $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID)
-		&& $xs->quit ()))
+				&& $xs->configure_node ($configuration['pubsub_server'],
+					$configuration['pubsub_node'] . '/posts',
+					min (20, $published_posts * 2))
+				&& $xs->notify ($configuration['pubsub_server'],
+					$configuration['pubsub_node'] . '/posts', $post_ID, $feed_title,
+					//$link, $feed_content, $feed_excerpt)
+				$link, $feed_content, $feed_excerpt, $publishxhtml)
+			&& $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID)
+			&& $xs->quit ()))
 	{
 		//echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
 		//echo $xs->last_error . '</p></div>';
@@ -180,6 +186,9 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 		$link = $post->guid;
 		$id = $comment_ID;
 
+		$count_comments = wp_count_comments ($comment->comment_post_ID);
+		$published_comments = $count_comments->approved;
+
 		$xs = new xmpp_stream ($configuration['node'],
 			$configuration['domain'], $configuration['password'],
 			'bot', $configuration['server'], $configuration['port']);
@@ -189,6 +198,9 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 		$history = get_option('jabber_feed_comment_history');
 
 		if (! ($xs->log ()
+			&& $xs->configure_node ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/comments/' . $post->ID,
+				min (10, $published_comments * 2))
 			&& $xs->notify ($configuration['pubsub_server'],
 				$configuration['pubsub_node'] . '/comments/' . $post->ID, $id, $feed_title,
 				$link, $feed_content)

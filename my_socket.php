@@ -120,7 +120,7 @@ class my_socket // {{{
 			// I read by block. Non-blocking mode does not seem to work in encrypted data...
 			//$received_data = stream_get_contents ($this->socket, 1);
 			if (strlen ($received_data) != 0)
-				jabber_feed_log ("Really received: \n" . $received_data);
+				jabber_feed_log ("Received data: \n" . $received_data);
 			return $received_data;
 			//return fread ($this->socket, 100);
 			//socket_recvfrom ($this->socket, $buf, 2000, MSG_DONTWAIT);
@@ -145,7 +145,7 @@ class my_socket // {{{
 
 		$data_length = strlen ($data);
 		$bytes_sent = 0;
-		jabber_feed_log ($data_length . " : " . $data);
+		//jabber_feed_log ($data_length . " : " . $data);
 
 		$timeout = 2;
 		$last_update = time ();
@@ -153,7 +153,7 @@ class my_socket // {{{
 		{
 			//$new_bytes_sent = socket_write ($this->socket, $data);
 			$new_bytes_sent = fwrite ($this->socket, $data); //substr ($data, $bytes_sent));
-		jabber_feed_log ($new_bytes_sent);
+		//jabber_feed_log ($new_bytes_sent);
 			/* XXX: the sending over socket returns the number of *bytes*...
 				But substr writes about start *character*. This is not an issue *currently* because "Before PHP 6, a character is the same as a byte".
 				Yet in the future (PHP 6 so?), it can make an error if ever the $data is not fully sent in once, and it is stopped in the middle of a character (UTF-8 for instance, most common now). Of course, even in PHP6, this will be a rare case where we are pretty unlucky. Still it would be possible. */
@@ -167,7 +167,7 @@ class my_socket // {{{
 			}
 			elseif ($new_bytes_sent > 0)
 			{
-				jabber_feed_log ("Sent " . $new_bytes_sent . " characters");
+				//jabber_feed_log ("Sent " . $new_bytes_sent . " characters");
 				$bytes_sent += $new_bytes_sent;
 				$last_update = time ();
 				continue;
@@ -178,7 +178,7 @@ class my_socket // {{{
 				jabber_feed_log ("Timeout in sent stanza: \n" . $data);
 				return FALSE;
 			}
-		jabber_feed_log ($new_bytes_sent);
+		//jabber_feed_log ($new_bytes_sent);
 		}
 		jabber_feed_log ("Sent stanza: \n" . $data);
 		return TRUE;

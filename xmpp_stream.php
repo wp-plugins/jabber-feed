@@ -67,6 +67,12 @@ class xmpp_stream // {{{
 	private $features = array ();
 	private $ids = array ();
 
+	// When the configuration form must be changed, we fill this array.
+	private $conf = array ();
+	// Keep temp values when I configure a node, for passing through functions...
+	private $temp_node = '';
+	private $temp_server = '';
+
 	// FLAGS //
 	private $flags = array ();
 
@@ -463,12 +469,42 @@ class xmpp_stream // {{{
 			return false;*/
 	} // }}}
 
+/*
+This function set a node as persistent, with at least $size as max_items.
+*/
+	function configure_node ($server, $node, $size) // {{{
+	{
+		$this->conf['pubsub#max_items'] = $size; 
+		$this->temp_node = $node;
+		$this->temp_server = $server;
+
+		$iq_id = time () . rand ();
+		$this->ids['configure'] = 'configure' . $iq_id;
+
+		$message = "<iq type='get' from='" . $this->jid . "' ";
+		$message .= "to='" . $server . "' id='configure" . $iq_id . "'>";
+		$message .= "<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>";
+		$message .= "<configure node='" . $node . "' />";
+		$message .= "</pubsub></iq>";
+
+		if (! $this->socket->send ($message))
+		{
+			$this->last_error = __('Node configuration failure: ');
+			$this->last_error .= $this->socket->last_error;
+			$this->quit ();
+			return FALSE;
+		}
+
+		return ($this->process_read ("configure_node_start_handler",
+					"configure_node_end_handler", 'configured'));
+	} // }}}
+
 	function node_type ($server, $node) // return false if not existing, "leaf" and "collection" otherwise! // {{{
 	{
 		$iq_id = time () . rand ();
 		$this->ids['node_info'] = 'info' . $iq_id;
 
-		$query_info = "<iq type='get' from='" . $jid . "' to='" . $server . "' id='info" . $iq_id;
+		$query_info = "<iq type='get' from='" . $this->jid . "' to='" . $server . "' id='info" . $iq_id;
 		$query_info .= "'><query xmlns='http://jabber.org/protocol/disco#info' node='";
 		$query_info .= $node . "'/></iq>";
 
@@ -552,7 +588,7 @@ class xmpp_stream // {{{
 			}
 			else // data read on the socket and processed in the handlers if needed!
 			{
-				jabber_feed_log ('Incoming XML parsed: ' . $data);
+				//jabber_feed_log ('Incoming XML parsed: ' . $data);
 				$xmpp_last_update = time ();
 				continue;
 			}
@@ -913,12 +949,13 @@ class xmpp_stream // {{{
 					$this->flags['authenticated_tls'] = false;
 					return;
 				}
-				jabber_feed_log ("plop");
+				//jabber_feed_log ("plop");
 			}
 			return;
 		}
 
 	} // }}}
+
 // Binding Resource //
 
 	private function binding_start_handler ($parser, $name, $attrs) // {{{
@@ -1011,6 +1048,127 @@ class xmpp_stream // {{{
 		{
 			unset ($this->flags['session_success']);
 			$this->flags['session'] = true;
+		}
+	} // }}}
+
+// Pubsub node configuration //
+
+	private function configure_node_start_handler ($parser, $name, $attrs) // {{{
+	{
+		$changeable = array ('pubsub#deliver_payloads', 'pubsub#title', 'pubsub#max_items', 'pubsub#persist_items', 'pubsub#subscribe');
+			
+		$this->common_start_handler ($name);
+		if ($name == 'IQ' && $attrs['TYPE'] == 'result' && $this->ids['configure'] == $attrs['ID'])
+		{
+			unset ($this->ids['configure']);
+			$this->flags['configuration_form'] = true;
+		}
+		elseif ($name == 'IQ' && $attrs['TYPE'] == 'error' && $this->ids['configure'] == $attrs['ID'])
+		{
+			unset ($this->ids['configure']);
+			$this->flags['configure_error'] = true;
+		}
+		elseif ($name == 'ERROR' && array_key_exists ('configure_error', $this->flags))
+		{
+			unset ($this->flags['configure_error']);
+			$this->last_error = __('The request for configuration form returned an error of type "') . $attrs['TYPE'] . '".';
+			$this->flags['configured'] = false;
+		}
+		elseif ($name == 'FIELD' && in_array ($attrs['VAR'], $changeable))
+		{
+			$this->flags[$attrs['VAR']] = true;
+		}
+
+	} // }}}
+
+	private function configure_node_end_handler ($parser, $name) // {{{
+	{
+		$this->common_end_handler ();
+		if ($name == 'IQ' && array_key_exists ('configuration_form', $this->flags))
+		{
+			unset ($this->flags['configuration_form']);
+			// XXX: Now I will send my configuration...
+			if (count ($this->conf) == 0)
+			{
+				// Nothing to change...
+				// I just cancel
+				$message = "<iq type='set' from='$this->jid' to='$this->temp_server' id='config2'>
+					<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>
+					<configure node='$this->temp_node'>
+					<x xmlns='jabber:x:data' type='cancel'/>
+					</configure>
+					</pubsub>
+					</iq>";
+			}
+			else
+			{
+				$message = "<iq type='set'
+					from='$this->jid'
+					to='$this->temp_server'
+					id='config2'>
+					<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>
+					<configure node='$this->temp_node'>
+					<x xmlns='jabber:x:data' type='submit'>";
+				foreach ($this->conf as $var => $value)
+				{
+					$message .= "<field var='$var'><value>$value</value></field>";
+				}
+				$message .= "</x>
+					</configure>
+					</pubsub>
+					</iq>";
+			}
+
+			if (! $this->socket->send ($message))
+			{
+				$this->last_error = __('Node configuration failure: ');
+				$this->last_error .= $this->socket->last_error;
+				$this->quit ();
+				$this->flags['configured'] = false;
+				return;
+			}
+	
+			$this->flags['configured'] = true;
+			return;
+			// XXX: I don't check for the configuration result because a failure on configuration is not fatale.
+			// Maybe one will be anyway able to publish (ex: bug on ejabberd which prevents max_items from being more than 20:
+			// https://support.process-one.net/browse/EJAB-819
+			// Then when you publish, the older item is removed... but this is better than stop publishing the latter post.
+		}
+		elseif ($name == 'VALUE' && array_key_exists ('pubsub#persist_items', $this->flags))
+		{
+			// Items are persistent.
+			unset ($this->flags['pubsub#persist_items']);
+			if ($this->current_cdata != '1')
+				$this->conf['pubsub#persist_items'] = "1";
+		}
+		elseif ($name == 'VALUE' && array_key_exists ('pubsub#subscribe', $this->flags))
+		{
+			// Users can subscribe.
+			unset ($this->flags['pubsub#subscribe']);
+			if ($this->current_cdata != '1')
+				$this->conf['pubsub#subscribe'] = "1";
+		}
+		elseif ($name == 'VALUE' && array_key_exists ('pubsub#deliver_payloads', $this->flags))
+		{
+			// Payloads (= post's contents) is delivered.
+			unset ($this->flags['pubsub#deliver_payloads']);
+			if ($this->current_cdata != 'true')
+				$this->conf['pubsub#deliver_payloads'] = "true";
+		}
+		elseif ($name == 'VALUE' && array_key_exists ('pubsub#title', $this->flags))
+		{
+			unset ($this->flags['pubsub#title']);
+			// I change the title only if it is empty. This way, if the admin want to set manually a title (through a pubsub program),
+			// then it won't be overriden by this plugin.
+			if ($this->current_cdata == '')
+				$this->conf['pubsub#title'] = "Notification node for: " . get_bloginfo ('name'); 
+		}
+		elseif ($name == 'VALUE' && array_key_exists ('pubsub#max_items', $this->flags))
+		{
+			unset ($this->flags['pubsub#max_items']);
+			if ($this->current_cdata > $this->conf['pubsub#max_items'])
+				unset ($this->conf['pubsub#max_items']);
 		}
 	} // }}}
 
