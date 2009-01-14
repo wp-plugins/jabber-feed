@@ -384,11 +384,12 @@ class xmpp_stream // {{{
 
 		$subnode = $this->subnode ($node);
 
-		/*
+		
 		if ($subnode == false || $this->create_collection ($server, $subnode))
-		 */
-		// XXX: there is no more semantics in node name, so don't use directory semantics in node name
+		// XXX: there is no more semantics in node name,
+		// so we should not use directory semantics in node name
 		// (cf. section 12.13 of XEP-0060)
+		// But for now, at least the ejabberd implementation requires this.
 		{
 			$iq_id = time () . rand ();
 			$this->ids['leaf'] = 'create' . $iq_id;
@@ -410,8 +411,8 @@ class xmpp_stream // {{{
 			return ($this->process_read ("leaf_creation_start_handler",
 				"leaf_creation_end_handler", 'leaf_created'));
 		}
-		/*else
-			return false;*/
+		else
+			return false;
 	} // }}}
 
 	function create_collection ($server, $node) // {{{
@@ -437,11 +438,11 @@ class xmpp_stream // {{{
 			return true;
 		// End of workaround.
 
-		/*$subnode = $this->subnode ($node);
+		$subnode = $this->subnode ($node);
 		if ($subnode == false || $this->create_collection ($server, $subnode))
-		 */
 		// XXX: there is no more semantics in node name, so don't use directory semantics in node name
 		// (cf. section 12.13 of XEP-0060)
+		// But for now, at least the ejabberd implementation requires this.
 		{
 			$iq_id = time () . rand ();
 			$this->ids['collection'] = 'create' . $iq_id;
@@ -465,8 +466,8 @@ class xmpp_stream // {{{
 			return ($this->process_read ("collection_creation_start_handler",
 				"collection_creation_end_handler", 'collection_created'));
 		}
-		/*else
-			return false;*/
+		else
+			return false;
 	} // }}}
 
 /*
@@ -1078,6 +1079,11 @@ This function set a node as persistent, with at least $size as max_items.
 		{
 			$this->flags[$attrs['VAR']] = true;
 		}
+		elseif ($name == 'IQ' && $attrs['ID'] == $this->ids['configure2'])
+		{
+			unset ($this->ids['configure2']);
+			$this->flags['configure_done'] = true;
+		}
 
 	} // }}}
 
@@ -1088,35 +1094,26 @@ This function set a node as persistent, with at least $size as max_items.
 		{
 			unset ($this->flags['configuration_form']);
 			// XXX: Now I will send my configuration...
+			$iq_id = 'config' . time () . rand ();
 			if (count ($this->conf) == 0)
 			{
 				// Nothing to change...
 				// I just cancel
-				$message = "<iq type='set' from='$this->jid' to='$this->temp_server' id='config2'>
-					<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>
-					<configure node='$this->temp_node'>
-					<x xmlns='jabber:x:data' type='cancel'/>
-					</configure>
-					</pubsub>
-					</iq>";
+				$message = "<iq type='set' from='$this->jid' to='$this->temp_server' id='$iq_id'>"
+					. "<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>"
+					. "<configure node='$this->temp_node'><x xmlns='jabber:x:data' type='cancel'/>"
+					. "</configure></pubsub></iq>";
 			}
 			else
 			{
-				$message = "<iq type='set'
-					from='$this->jid'
-					to='$this->temp_server'
-					id='config2'>
-					<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>
-					<configure node='$this->temp_node'>
-					<x xmlns='jabber:x:data' type='submit'>";
+				$message = "<iq type='set' from='$this->jid' to='$this->temp_server' id='$iq_id'>"
+					. "<pubsub xmlns='http://jabber.org/protocol/pubsub#owner'>"
+					. "<configure node='$this->temp_node'><x xmlns='jabber:x:data' type='submit'>";
 				foreach ($this->conf as $var => $value)
 				{
 					$message .= "<field var='$var'><value>$value</value></field>";
 				}
-				$message .= "</x>
-					</configure>
-					</pubsub>
-					</iq>";
+				$message .= "</x></configure></pubsub></iq>";
 			}
 
 			if (! $this->socket->send ($message))
@@ -1128,10 +1125,22 @@ This function set a node as persistent, with at least $size as max_items.
 				return;
 			}
 	
-			$this->flags['configured'] = true;
+			$this->ids['configure2'] = $iq_id;
+
+		}
+		elseif ($name == 'IQ' && array_key_exists ('configure_done', $this->flags))
+		{
+			unset ($this->flags['configure_done']);
+			if ($attrs['TYPE'] == 'result')
+				$this->flags['configured'] = true;
+			else
+			{
+				$this->flags['configured'] = false;
+				$this->last_error = 'Failure to configure.';
+			}
 			return;
 			// XXX: I don't check for the configuration result because a failure on configuration is not fatale.
-			// Maybe one will be anyway able to publish (ex: bug on ejabberd which prevents max_items from being more than 20:
+			// Maybe one will be anyway able to publish. Ex: bug on ejabberd which prevents max_items from being more than 20:
 			// https://support.process-one.net/browse/EJAB-819
 			// Then when you publish, the older item is removed... but this is better than stop publishing the latter post.
 		}
@@ -1167,7 +1176,7 @@ This function set a node as persistent, with at least $size as max_items.
 		elseif ($name == 'VALUE' && array_key_exists ('pubsub#max_items', $this->flags))
 		{
 			unset ($this->flags['pubsub#max_items']);
-			if ($this->current_cdata > $this->conf['pubsub#max_items'])
+			if ($this->current_cdata >= $this->conf['pubsub#max_items'])
 				unset ($this->conf['pubsub#max_items']);
 		}
 	} // }}}

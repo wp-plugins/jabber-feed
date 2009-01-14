@@ -95,35 +95,39 @@ function xmpp_publish_post ($post_ID) // {{{
 	
 	$history = get_option('jabber_feed_post_history');
 
-	if (! ($xs->log ()
-				&& $xs->configure_node ($configuration['pubsub_server'],
+	if ($xs->log ())
+	{
+		$xs->configure_node ($configuration['pubsub_server'],
 					$configuration['pubsub_node'] . '/posts',
-					min (20, $published_posts * 2))
-				&& $xs->notify ($configuration['pubsub_server'],
+					min (20, $published_posts * 2));
+		// I don't check for the result...
+		if (! $xs->notify ($configuration['pubsub_server'],
 					$configuration['pubsub_node'] . '/posts', $post_ID, $feed_title,
 					//$link, $feed_content, $feed_excerpt)
-				$link, $feed_content, $feed_excerpt, $publishxhtml)
-			&& $xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID)
-			&& $xs->quit ()))
-	{
-		//echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
-		//echo $xs->last_error . '</p></div>';
-		$history[$post_ID] = array ('error' => $xs->last_error);
-	}
-	else
-	{
-		if (array_key_exists ($post_ID, $history))
+				$link, $feed_content, $feed_excerpt, $publishxhtml))
 		{
-			if (array_key_exists ('error', $history[$post_ID]))
-			{
-				unset ($history[$post_ID]['error']);
-				$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
-			}
-			else
-				$history[$post_ID]['updated'] = date ('c');
+			//echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
+			//echo $xs->last_error . '</p></div>';
+			$history[$post_ID] = array ('error' => $xs->last_error);
 		}
 		else
-			$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+		{
+			if (array_key_exists ($post_ID, $history))
+			{
+				if (array_key_exists ('error', $history[$post_ID]))
+				{
+					unset ($history[$post_ID]['error']);
+					$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+				}
+				else
+					$history[$post_ID]['updated'] = date ('c');
+			}
+			else
+				$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+		}
+		$xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID);
+		// Not fatale if the comments leaf creation fails.
+		$xs->quit ();
 	}
 	update_option('jabber_feed_post_history', $history);
 
@@ -180,7 +184,13 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 		$comment = get_comment ($comment_ID, OBJECT);
 		$post = get_post ($comment->comment_post_ID, OBJECT);
 		$post_title = $post->post_title;
-		$comment_author = $comment->comment_author;
+		if ($comment->user_ID == 0)
+			$comment_author = $comment->comment_author;
+		else
+		{
+			$user_info = get_userdata ($comment->user_ID);
+			$comment_author = $user_info->display_name; // user_nicename?
+		}
 		$feed_title = '[' . $blog_title . "] " . $post_title . " (commenter: " . $comment_author . ')';
 		$feed_content = $comment->comment_content;
 		$link = $post->guid;
@@ -197,34 +207,36 @@ function xmpp_publish_comment ($comment_ID, $status) // {{{
 
 		$history = get_option('jabber_feed_comment_history');
 
-		if (! ($xs->log ()
-			&& $xs->configure_node ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/comments/' . $post->ID,
-				min (10, $published_comments * 2))
-			&& $xs->notify ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/comments/' . $post->ID, $id, $feed_title,
-				$link, $feed_content)
-			&& $xs->quit ()))
-			$history[$id] = array ('error' => $xs->last_error);
-		else
+		if ($xs->log ())
 		{
-			if (array_key_exists ($id, $history))
+			$xs->configure_node ($configuration['pubsub_server'],
+					$configuration['pubsub_node'] . '/comments/' . $post->ID,
+					min (10, $published_comments * 2));
+
+			if (! $xs->notify ($configuration['pubsub_server'],
+						$configuration['pubsub_node'] . '/comments/' . $post->ID, $id, $feed_title,
+						$link, $feed_content))
+				$history[$id] = array ('error' => $xs->last_error);
+			else
 			{
-				if (array_key_exists ('error', $history[$comment_ID]))
+				if (array_key_exists ($id, $history))
 				{
-					unset ($history['$comment_ID']['error']);
-					$history[$id] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+					if (array_key_exists ('error', $history[$comment_ID]))
+					{
+						unset ($history['$comment_ID']['error']);
+						$history[$id] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+					}
+					else
+						$history[$id]['updated'] = date ('c');
 				}
 				else
-					$history[$id]['updated'] = date ('c');
+					$history[$id] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
 			}
-			else
-				$history[$id] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
-				
+			$xs->quit ();
 		}
+		update_option('jabber_feed_comment_history', $history);
 	}
 
-	update_option('jabber_feed_comment_history', $history);
 	return $comment_ID;
 } // }}}
 
