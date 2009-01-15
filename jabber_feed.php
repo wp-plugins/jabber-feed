@@ -117,13 +117,14 @@ function xmpp_publish_post ($post_ID) // {{{
 				if (array_key_exists ('error', $history[$post_ID]))
 				{
 					unset ($history[$post_ID]['error']);
-					$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+					$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
 				}
 				else
 					$history[$post_ID]['updated'] = date ('c');
 			}
 			else
-				$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $id);
+				$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
+				// XXX: to check, but 'id' can be removed anyway, as it is $post_ID...
 		}
 		$xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID);
 		// Not fatale if the comments leaf creation fails.
@@ -148,12 +149,17 @@ function xmpp_delete_post_page ($ID) // {{{
 	
 	if (! ($xs->log ()
 		&& $xs->delete_item ($configuration['pubsub_server'],
-			$configuration['pubsub_node'] . '/posts', $history[$ID]['id'])
+			$configuration['pubsub_node'] . '/posts', $ID) //$history[$ID]['id'])
 		 && $xs->delete_node ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $ID)
 		&& $xs->quit ()))
 	{
-		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
-		echo $xs->last_error . '</p></div>';
+		//echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
+		//echo $xs->last_error . '</p></div>';
+		//echo $xs->last_error . '</p></div>';
+		// I remove anyway the history as otherwise, it would be "lost" and never removed:
+		// the ID does not exist anymore because the post is anyway removed.
+		unset ($history[$ID]);
+		jabber_feed_log ("Error on removing post: ". $xs->last_error);
 	}
 	else
 	{
@@ -261,8 +267,10 @@ function xmpp_delete_comment ($comment_ID) // {{{
 			$configuration['pubsub_node'] . '/comments/' . $comment->comment_post_ID, $comment_ID)
 		&& $xs->quit ()))
 	{
-		echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
-		echo $xs->last_error . '</p></div>';
+		//echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
+		//echo $xs->last_error . '</p></div>';
+		unset ($history[$comment_ID]);
+		jabber_feed_log ("Error on removing post: ". $xs->last_error);
 	}
 	else
 			unset ($history[$comment_ID]);
@@ -273,10 +281,10 @@ function xmpp_delete_comment ($comment_ID) // {{{
 
 function xmpp_comment_status ($comment_ID, $status) // {{{
 {
+	jabber_feed_log ('Change comment ' . $comment_ID . ' to ' . $status);
 	$configuration = get_option ('jabber_feed_configuration');
 	if (empty ($configuration['publish_comments']))
 		return $comment_ID;
-
 
 	if ($status == 'approve')
 		xmpp_publish_comment ($comment_ID, 1);

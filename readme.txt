@@ -314,12 +314,29 @@ action for this specific case? Try this also with posts from the "edit post"
 page.
 Edit: it seems to be a known bug: http://trac.wordpress.org/ticket/5792
 Is planned to be fixed for Wordpress 2.9 apparently.
+=> this seems to be fixed now! Woohoo!
 
 * Add more authentication mechanisms? (current: Digest-MD5, CramMD5, PLAIN,
 ANONYMOUS. Only Digest-MD5 and PLAIN has been tested)
 
-* SSLv23 added (TLS does not work on Gmail. SSL and TLS works on ejabberd. So
-I have decided to use SSL only for now).
+* SSLv23 added, but what about TLS?  (TLS does not work on Gmail. SSL and TLS works on ejabberd. So
+I have decided to use SSL only for now)
+Note that it looks like the PHP implementation of TLS encryption does not seem
+like verifying the certificate...
+
+* Add poster/commenter name in ATOM format.
+<author><name>Poster's name</name></author>
+http://tools.ietf.org/html/rfc4287
+
+* Add support for button of publishing all posts in once...
+
+* Propose max_items to change...
+
+* Improve title naming (different for comments, posts, and even for comments
+of each posts...)
+
+* Isn't there a configuration option for getting notif of subnodes?.. Seem to
+remind yes.
 
 == Contacts ==
 

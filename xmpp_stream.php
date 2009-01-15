@@ -59,7 +59,7 @@ class xmpp_stream // {{{
 	// The key is the mechanism name, and the value is the preference.
 	// The more securized, the preferred mechanism...
 	// For now will consider only the digest-md5 authentication.
-	private $known_auth = array ('DIGEST-MD5' => 10, 'CRAMMD5' =>7, 'PLAIN' => 4, 'ANONYMOUS' => 0);
+	private $known_auth = array ('DIGEST-MD5' => 10, 'CRAMMD5' =>7, 'PLAIN' => 4); //, 'ANONYMOUS' => 0);
 	private $chosen_mechanism = '';
 	private $use_tls = false;
 
