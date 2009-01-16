@@ -145,7 +145,6 @@ class my_socket // {{{
 
 		$data_length = strlen ($data);
 		$bytes_sent = 0;
-		//jabber_feed_log ($data_length . " : " . $data);
 
 		$timeout = 2;
 		$last_update = time ();
@@ -153,7 +152,6 @@ class my_socket // {{{
 		{
 			//$new_bytes_sent = socket_write ($this->socket, $data);
 			$new_bytes_sent = fwrite ($this->socket, $data); //substr ($data, $bytes_sent));
-		//jabber_feed_log ($new_bytes_sent);
 			/* XXX: the sending over socket returns the number of *bytes*...
 				But substr writes about start *character*. This is not an issue *currently* because "Before PHP 6, a character is the same as a byte".
 				Yet in the future (PHP 6 so?), it can make an error if ever the $data is not fully sent in once, and it is stopped in the middle of a character (UTF-8 for instance, most common now). Of course, even in PHP6, this will be a rare case where we are pretty unlucky. Still it would be possible. */
@@ -178,7 +176,6 @@ class my_socket // {{{
 				jabber_feed_log ("Timeout in sent stanza: \n" . $data);
 				return FALSE;
 			}
-		//jabber_feed_log ($new_bytes_sent);
 		}
 		jabber_feed_log ("Sent stanza: \n" . $data);
 		return TRUE;
@@ -235,10 +232,9 @@ class my_socket // {{{
 			or 0 if there isn't enough data and you should try again (only for non-blocking sockets).
 			As this is a bot, and there is no human interaction, the second case is also wrong for us, so I don't distinguate them (but maybe would it be better for debugging?)...
 
-			XXX: Note that I think that this implementation does not include the certificate validation (or else what happens if the validation fails, should'nt it allow us to possibly validate manually the certificate by showing it to the user? This last point in particular is to check...
+			XXX: Note that I think that this implementation does not include the certificate validation (or else what happens if the validation fails, shouldn't it allow us to possibly validate manually the certificate by showing it to the user? This last point in particular is to check...
 			*/
 	} // }}}
-
 
 } // }}}
 

@@ -25,8 +25,6 @@ require_once('Auth/SASL/DigestMD5.php');
 require_once('Auth/SASL/Plain.php');
 require_once('Auth/SASL/CramMD5.php');
 require_once('Auth/SASL/Anonymous.php');
-// See this: interesting for making logs, then display it!
-// http://fr2.php.net/manual/en/errorfunc.examples.php
 $old_error_level = error_reporting(0);
 include_once "Net/DNS.php"; // For SRV Records. // Optional.
 error_reporting($old_error_level);
@@ -59,7 +57,7 @@ class xmpp_stream // {{{
 	// The key is the mechanism name, and the value is the preference.
 	// The more securized, the preferred mechanism...
 	// For now will consider only the digest-md5 authentication.
-	private $known_auth = array ('DIGEST-MD5' => 10, 'CRAMMD5' =>7, 'PLAIN' => 4); //, 'ANONYMOUS' => 0);
+	private $known_auth = array ('DIGEST-MD5' => 10, 'CRAM-MD5' =>7, 'PLAIN' => 4); //, 'ANONYMOUS' => 0);
 	private $chosen_mechanism = '';
 	private $use_tls = false;
 
@@ -88,27 +86,18 @@ class xmpp_stream // {{{
 		{
 			if (class_exists ("NET_DNS_Resolver"))
 			{
-					//jabber_feed_log ("plouf");
 				$resolver = new Net_DNS_Resolver();
 				$response = $resolver->query('_xmpp-client._tcp.' . $this->domain, 'SRV');
 				if ($response)
 				{
 					foreach ($response->answer as $rr)
 					{
-						//$rr->display();
-						//jabber_feed_log ($response->answer[0]);
-						//$rr = $response->answer[0];
 						$this->server[] = $rr->target;
 						$this->port[] = $rr->port;
-						//jabber_feed_log ($rr->target);
-						//jabber_feed_log ($rr->target . " + " . $rr->port . " from: " . $response->answer[0]);
-						/*echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
-						  echo $this->server . ' *** ' . $this->port . '</p></div>';*/
 					}
 				}
 				else
 				{
-					//jabber_feed_log ("no response");
 					$this->port[] = 5222;
 					$this->server[] = $domain;
 				}
@@ -176,7 +165,6 @@ class xmpp_stream // {{{
 			if (! $this->socket->connect ())
 			{
 				$this->last_error = __('Error during connection: ') . $this->socket->last_error;
-				//return false;
 				continue;
 			}
 
@@ -280,8 +268,6 @@ class xmpp_stream // {{{
 		if ($excerpt !== '') // I don't know if it is possible to have xhtml excerpt in Wordpress. But let's say the plugin always send only text version.
 			$message .= "<summary>" . xhtml2bare ($excerpt) . "</summary>";
 
-			//$message .= '<content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><![CDATA[' . $content;
-			//$message .= ']]></div></content>';
 		if ($content !== '')
 		{
 			if ($xhtml)
@@ -384,7 +370,6 @@ class xmpp_stream // {{{
 
 		$subnode = $this->subnode ($node);
 
-		
 		if ($subnode == false || $this->create_collection ($server, $subnode))
 		// XXX: there is no more semantics in node name,
 		// so we should not use directory semantics in node name
@@ -670,7 +655,7 @@ This function set a node as persistent, with at least $size as max_items.
 				}
 
 			}
-			elseif ($this->chosen_mechanism == "CRAMMD5")
+			elseif ($this->chosen_mechanism == "CRAM-MD5")
 			{
 				$sasl = new Auth_SASL_CramMD5 ();
 				$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge);
@@ -737,7 +722,7 @@ This function set a node as persistent, with at least $size as max_items.
 			}
 			return;
 		}
-		elseif ($name == 'PROCEED' // namespace?!! Test use_tls?
+		elseif ($name == 'PROCEED'
 				&& array_key_exists ('starttls', $this->flags))
 		{
 			unset ($this->flags['starttls']);
@@ -789,23 +774,21 @@ This function set a node as persistent, with at least $size as max_items.
 			}
 			else
 			{
-				//jabber_feed_log ("plip");
 				if ($this->chosen_mechanism == "PLAIN")
 				{
 					$sasl = new Auth_SASL_Plain ();
 					$uncoded = $sasl->getResponse ($this->node . '@' . $this->domain, $this->password);
-					// To be tested. Should the first argument be full jid or just username?
 
 					$coded = base64_encode ($uncoded);
 					//$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'>' . $coded . '</response>';
 
-					if (! $this->socket->send ($response))
+					/*if (! $this->socket->send ($response))
 					{
 						$this->last_error = __('Authentication failure: ');
 						$this->last_error .= $_socket->last_error;
 						$this->flags['authenticated'] = false;
 						return;
-					}
+					}*/
 
 					$mechanism = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>";
 					$mechanism .= $coded . "</auth>";
@@ -849,7 +832,7 @@ This function set a node as persistent, with at least $size as max_items.
 				$sasl = new Auth_SASL_DigestMD5 ();
 				$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge, $this->domain, 'xmpp');
 			}
-			elseif ($this->chosen_mechanism == "CRAMMD5")
+			elseif ($this->chosen_mechanism == "CRAM-MD5")
 			{
 				$sasl = new Auth_SASL_CramMD5 ();
 				$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge);
@@ -859,6 +842,13 @@ This function set a node as persistent, with at least $size as max_items.
 			{
 				$sasl = new Auth_SASL_Anonymous ();
 				$uncoded = $sasl->getResponse ();
+			}
+			else
+			{
+				$this->last_error = __('Authentication failure: ');
+				$this->last_error .= __('this case should never happen. Contact the developper.');
+				$this->flags['authenticated_tls'] = false;
+				return;
 			}
 			/*elseif ($this->chosen_mechanism == "PLAIN")
 			{
@@ -916,23 +906,12 @@ This function set a node as persistent, with at least $size as max_items.
 			}
 			else
 			{
-				//jabber_feed_log ("plop");
 				if ($this->chosen_mechanism == "PLAIN")
 				{
 					$sasl = new Auth_SASL_Plain ();
 					$uncoded = $sasl->getResponse ($this->node . '@' . $this->domain, $this->password);
-					// To be tested. Should the first argument be full jid or just username?
 
 					$coded = base64_encode ($uncoded);
-					//$response = '<response xmlns=\'urn:ietf:params:xml:ns:xmpp-sasl\'>' . $coded . '</response>';
-
-					if (! $this->socket->send ($response))
-					{
-						$this->last_error = __('Authentication failure: ');
-						$this->last_error .= $_socket->last_error;
-						$this->flags['authenticated'] = false;
-						return;
-					}
 
 					$mechanism = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>";
 					$mechanism .= $coded . "</auth>";
@@ -942,7 +921,7 @@ This function set a node as persistent, with at least $size as max_items.
 					$mechanism = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl'";
 					$mechanism .= " mechanism='" . $this->chosen_mechanism . "' />";
 				}
-				//jabber_feed_log ("plop");
+
 				if (! $this->socket->send ($mechanism))
 				{
 					$this->last_error = __('Authentication failure: ');
@@ -950,7 +929,6 @@ This function set a node as persistent, with at least $size as max_items.
 					$this->flags['authenticated_tls'] = false;
 					return;
 				}
-				//jabber_feed_log ("plop");
 			}
 			return;
 		}

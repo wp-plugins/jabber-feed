@@ -445,13 +445,16 @@ function xhtml2bare ($xhtml) // {{{ Todo: shouldn't I rather use again the xml p
 /*
  * Add the new entry $entry in the logs, with the current date.
  */
-function jabber_feed_log ($entry)
+// See this: interesting for making logs, then display it!
+// http://fr2.php.net/manual/en/errorfunc.examples.php
+function jabber_feed_log ($entry) // {{{
 {
-	$date = date ('Y-m-d\TH:i:s+Z'); 
+	// XXX: uncomment this to log errors for debugging.
+	/*$date = date ('Y-m-d\TH:i:s+Z'); 
 
 	$error_msg = '**** ' . $date . " ****\n\n" . $entry . "\n\n";
-	error_log ($error_msg, 3, '/tmp/jabber_feed_errors.log');
-}
+	error_log ($error_msg, 3, '/tmp/jabber_feed_errors.log');*/
+} // }}}
 
 /*
  * What about a future feature of sending a message through Jabber to an admin JID when severa messages?

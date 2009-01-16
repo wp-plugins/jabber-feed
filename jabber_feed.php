@@ -3,7 +3,7 @@
 Plugin Name: Jabber Feed
 Plugin URI: http://jehan.zemarmot.net/blog/jabber-feed/
 Description: a Jabber publishing notification for articles and comments.
-Version: 0.3
+Version: 0.4
 Author: Jehan Hysseo
 Author URI: http://jehan.zemarmot.net
 */
@@ -106,8 +106,6 @@ function xmpp_publish_post ($post_ID) // {{{
 					//$link, $feed_content, $feed_excerpt)
 				$link, $feed_content, $feed_excerpt, $publishxhtml))
 		{
-			//echo '<div class="updated"><p>' . __('<strong>Jabber Feed error</strong>') . '<br />';
-			//echo $xs->last_error . '</p></div>';
 			$history[$post_ID] = array ('error' => $xs->last_error);
 		}
 		else
@@ -153,9 +151,6 @@ function xmpp_delete_post_page ($ID) // {{{
 		 && $xs->delete_node ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $ID)
 		&& $xs->quit ()))
 	{
-		//echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
-		//echo $xs->last_error . '</p></div>';
-		//echo $xs->last_error . '</p></div>';
 		// I remove anyway the history as otherwise, it would be "lost" and never removed:
 		// the ID does not exist anymore because the post is anyway removed.
 		unset ($history[$ID]);
@@ -267,8 +262,6 @@ function xmpp_delete_comment ($comment_ID) // {{{
 			$configuration['pubsub_node'] . '/comments/' . $comment->comment_post_ID, $comment_ID)
 		&& $xs->quit ()))
 	{
-		//echo '<div class="updated"><p>' . __('Jabber Feed error:') . '<br />';
-		//echo $xs->last_error . '</p></div>';
 		unset ($history[$comment_ID]);
 		jabber_feed_log ("Error on removing post: ". $xs->last_error);
 	}
@@ -294,9 +287,15 @@ function xmpp_comment_status ($comment_ID, $status) // {{{
 	return $comment_ID;
 } // }}}
 
+function xmpp_status_change ($new, $old, $comment) // {{{
+{
+	jabber_feed_log ('Change from ' . $old . ' to ' . $new . ":\n"); // . $comment);
+} // }}}
+
 add_action ('comment_post', 'xmpp_publish_comment', 10, 2);
 add_action ('delete_comment', 'xmpp_delete_comment');
 add_action ('wp_set_comment_status', 'xmpp_comment_status', 10, 2);
+//add_action ('transition_comment_status', 'xmpp_status_change', 10, 3);
 
 /**********************\
 // Configuration Page \\
@@ -369,33 +368,6 @@ function jabber_feed_configuration_page () // {{{
 	//now we drop into html to display the option page form.
 	?>
 	<div class="wrap">
-		<?php //$history = get_option('jabber_feed_post_history');
-		//print_r ($history); // for tests!
-		//$zeid = 68;
-		//$zepost = get_post ($zeid, OBJECT);
-		//echo "CONTENT<br />";
-		//echo htmlentities($zepost->post_content);
-		//echo "EXCERPT<br />";
-		//echo htmlentities ($zepost->post_excerpt);
-		//echo "FILTER<br />";
-		//echo htmlentities ($zepost->post_content_filtered);
-		//echo "END<br />";
-		//$test = "<a la='plouf'>yo man &oelig;to<br>c";
-		//echo "NORMAL<br/>";
-		//echo htmlentities ($zepost->post_content);
-		//jabber_feed_log ($zepost->post_content);
-		//echo htmlentities ($test);
-		//echo "<br /><br />FIXED<br/>";
-		//echo htmlentities (fixxhtml ($zepost->post_content));
-		//echo htmlentities (fixxhtml ($test));
-		//echo "<br/><br />IM<br/>";
-		//echo htmlentities (xhtml2xhtmlim ($zepost->post_content));
-		//echo htmlentities (xhtml2xhtmlim ($test));
-		//echo "<br/><br />bare<br/>";
-		//echo htmlentities (xhtml2bare ($test));
-		//echo (xhtml2bare ($zepost->post_content));
-
-		?>
 		<h2><?php echo _e('Jabber Feed configuration') ?></h2>
 		<form method="post" action="">
 			<fieldset class="options">
@@ -428,18 +400,18 @@ function jabber_feed_configuration_page () // {{{
 
 			<fieldset class="options">
 				<legend><?php _e('Connection Parameters') ?></legend>
-				<p><em>These are advanced settings. If you don't understand them, they are probably useless and default values will be enough.</em></p>
+				<p><em><?php _e("These are advanced settings. If you don't understand them, they are probably useless and default values will be enough.") ?> </em></p>
 				<?php 
 				if (class_exists ("NET_DNS_Resolver"))
 				{
 					?>
-				<p><em>Note that SRV Records are used by default.</em></p>
+				<p><em><?php _e('Note that SRV Records are used by default.') ?></em></p>
 				<?php
 				}
 				else
 				{
 					?>
-					<p><em>SRV Records discovery option is not enabled because the PEAR module NET_DNS is not installed on this server.</em></p>
+					<p><em><?php _e('SRV Records discovery option is not enabled because the PEAR module NET_DNS is not installed on this server.') ?></em></p>
 					<?php
 				}
 		?>
@@ -581,23 +553,6 @@ function jabber_feed_configuration_page () // {{{
 					<?php } ?>
 					</label><br />
 
-				<?php /*
-				<p>
-					<strong><?php _e('Publication Format:') ?></strong><br />
-					<input name="publish_as_atom"
-						type="checkbox"
-						id="publish_as_atom"
-						<?php
-						if (! empty ($configuration['publish_as_atom']))
-						{
-						?>
-						checked="checked"
-						<?php } ?>
-					/>
-					<label for="publish_posts"><?php _e('Publish in ATOM format') ?></label><br />
-
-				</p>
-				*/ ?>
 			</fieldset>
 
 
@@ -680,7 +635,8 @@ function jabber_feed_publish_button () // {{{
 // Modify the Manage page.
 add_filter('manage_posts_columns', 'jabber_feed_admin_columns');
 add_action ('manage_posts_custom_column', 'jabber_feed_custom_column', 10, 2);
-add_action ('restrict_manage_posts', 'jabber_feed_publish_button');
+// TODO: implement action related to this button.
+// add_action ('restrict_manage_posts', 'jabber_feed_publish_button');
 
 /**********************\
 // Autodiscovery link \\
