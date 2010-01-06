@@ -102,6 +102,25 @@ class xmpp_stream // {{{
 					$this->server[] = $domain;
 				}
 			}
+			elseif (function_exists ("dns_get_record"))
+			{
+				$response = dns_get_record ('_xmpp-client._tcp.' . $this->domain, DNS_SRV);
+				if ($response)
+				{
+					foreach ($response as $rr)
+					{
+						$this->server[] = $rr['target'];
+						$this->port[] = $rr['port'];
+						$this->pri[] = $rr['pri'];
+						/* TODO: priority/weight gestion. */
+					}
+				}
+				else
+				{
+					$this->port[] = 5222;
+					$this->server[] = $domain;
+				}
+			}
 			else
 			{
 				$this->port[] = 5222;

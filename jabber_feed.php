@@ -402,7 +402,7 @@ function jabber_feed_configuration_page () // {{{
 				<legend><?php _e('Connection Parameters') ?></legend>
 				<p><em><?php _e("These are advanced settings. If you don't understand them, they are probably useless and default values will be enough.") ?> </em></p>
 				<?php 
-				if (class_exists ("NET_DNS_Resolver"))
+				if (class_exists ("NET_DNS_Resolver") || function_exists ("dns_get_record"))
 				{
 					?>
 				<p><em><?php _e('Note that SRV Records are used by default.') ?></em></p>

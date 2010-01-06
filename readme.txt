@@ -4,7 +4,7 @@ Contributors: Jehan Hysseo
 Donate link: http://jehan.zemarmot.net/blog/jabber-feed/
 Tags: jabber, xmpp, pubsub, xep-0060, notification, feed, posts, comments
 requires at least: 2.0
-Tested up to: 2.7.0
+Tested up to: 2.9.1
 Stable tag: 0.4
 
 This plugin feeds Jabber server pubsub nodes when new posts are published on
@@ -76,10 +76,15 @@ Then with PHP 4.3.X or PHP 5, you can install it as a PECL module: `pecl install
 `--with-tidy` compilation option in PHP 5.
 Without this, you won't have access to the XHTML option and all notifications will be sent as a normal textual message.
 
-* OPTIONAL: to use the SRV records on the admin JID, which is the correct way of resolving the
+* OPTIONAL: if the plugin is installed on a BSD (Mac included),
+in order to use the SRV records on the admin JID, which is the correct way of resolving the
 server and port addresses for a domain, the PEAR extension NET_DNS must be
 installed: 'pear install NET_DNS' (Note that it will ask to have php compiled
 with 'mhash' option).
+If it is installed on Windows, it is not anymore mandatory if you have PHP
+5.3.0 or later installed (under this version of PHP, you should also install
+this extension to benefit SRV records).
+Linux servers do not need this extension to have SRV.
 Note for gentoo users: you must set the 'mhash' USE flag.
 
 = Working Platforms =
