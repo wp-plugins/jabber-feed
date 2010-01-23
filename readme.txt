@@ -378,3 +378,5 @@ Have a nice life!
   now implemented, exactly as in RFC 2782. Therefore the only missing part for
   a full SRV records compliance is now a support of Time To Live, which could
   be interesting next implementation.
+
+- New widget for displaying the XMPP feeds in the sidebars.
