@@ -56,20 +56,28 @@ class jabber_feed_widget extends WP_Widget
 		if ($title)
 			echo $before_title . $title . $after_title;
 
-		// TODO: use the checkcases on the config tool.
-		echo '<ul><li>';
-		jabber_feed_display ($node = 'posts', $what = 'a', $text = 'TODO: Posts');
-		echo '</li><li>';
-		jabber_feed_display ($node = 'comments', $what = 'a', $text = 'TODO: Comments');
-		echo '</li>';
-		if (is_singular ())
+		$configuration = get_option ('jabber_feed_configuration');
+		echo '<ul>';
+		if (!empty ($configuration['publish_posts']))
 		{
-			$id = get_the_ID ();
-			if (comments_open ($id) || count (get_approved_comments ($id) > 0))
+			echo '<li>';
+			jabber_feed_display ($node = 'posts', $what = 'a', $text = 'TODO: Posts');
+			echo '</li>';
+		}
+		if (!empty ($configuration['publish_comments']))
+		{
+			echo '<li>';
+			jabber_feed_display ($node = 'comments', $what = 'a', $text = 'TODO: Comments');
+			echo '</li>';
+			if (is_singular ())
 			{
-				echo '<li>';
-				jabber_feed_display ($node = 'current', $what = 'a', $text = 'TODO: Comments of current post');
-				echo '</li>';
+				$id = get_the_ID ();
+				if (comments_open ($id) || count (get_approved_comments ($id) > 0))
+				{
+					echo '<li>';
+					jabber_feed_display ($node = 'current', $what = 'a', $text = 'TODO: Comments of current post');
+					echo '</li>';
+				}
 			}
 		}
 		echo '</ul>';
