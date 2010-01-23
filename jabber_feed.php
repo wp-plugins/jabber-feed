@@ -28,6 +28,7 @@ Author URI: http://jehan.zemarmot.net
 require_once(dirname(__FILE__) . '/xmpp_stream.php');
 require_once(dirname(__FILE__) . '/xmpp_utils.php');
 require_once(dirname(__FILE__) . '/templates.php');
+require_once(dirname(__FILE__) . '/jf_widget.php');
 
 ///////////////////////
 // Post Publication  //
@@ -658,5 +659,17 @@ function jabber_feed_header () // {{{
 } // }}}
 
 add_action ('wp_head', 'jabber_feed_header');
+
+
+/**********\
+// Widget \\
+\**********/
+
+function jabber_feed_load_widget ()
+{
+	return register_widget ('jabber_feed_widget');
+}
+
+add_action ('widgets_init', 'jabber_feed_load_widget');
 
 ?>
