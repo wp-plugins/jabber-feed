@@ -74,6 +74,55 @@ class xmpp_stream // {{{
 	// FLAGS //
 	private $flags = array ();
 
+	private function srv_sort ($records)
+	{
+		ksort ($records);
+		foreach ($records as $rrs)
+		{
+			if (count ($rrs) == 1)
+			{
+				$this->port[] = $rrs[0]['port'];
+				$this->server[] = $rrs[0]['target'];
+			}
+			else
+			{
+				function nul_first ($a, $b)
+				{
+					if ($a['weight'] == 0 && $b['weight'] == 0)
+						return 0;
+					if ($a['weight'] == 0)
+						return -1; // nul weighted records are first.
+					if ($b['weight'] == 0)
+						return 1; // nul weighted records are first.
+					else
+						return 0; // other than this, I don't care.
+				}
+
+				usort ($rrs, nul_first);
+				$w_sum = 0;
+				while (count ($rrs) > 0)
+				{
+					foreach ($rrs as $rr)
+					{
+						$w_sum += $rr['weight'];
+						$rr['w_sum'] = $w_sum;
+					}
+					$rand_num = rand (0, $w_sum);
+					foreach ($rrs as $k => $rr)
+					{
+						if ($rr['w_sum'] >= $rand_num)
+						{
+							$this->port[] = $rr['port'];
+							$this->server[] = $rr['server'];
+							unset ($rrs[$k]);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
 	function __construct ($node, $domain, $password, $resource = 'bot',
 		$server = '', $port = '') // {{{
 	{
@@ -94,16 +143,18 @@ class xmpp_stream // {{{
 					foreach ($response->answer as $rr)
 					{
 						$rec = array ();
-						$rec['target'] = $rr['target'];
-						$rec['port'] = $rr['port'];
-						$rec['weight'] = $rr['weight'];
-						$recs[$rr['pri']][] = $rec;
+						$rec['target'] = $rr->target;
+						$rec['port'] = $rr->port;
+						$rec['weight'] = $rr->weight;
+						$recs[$rr->preference][] = $rec;
+						// for some unknown reason, in NET_DNS, priority seems called preference.
 
 						/*$this->server[] = $rr->target;
 						$this->port[] = $rr->port;
 						$this->priority[] = $rr->preference; // for some unknown reason, in NET_DNS, priority seems called preference.
 						$this->weight[] = $rr->weight;*/
 					}
+					$this->srv_sort ($recs);
 				}
 				else
 				{
@@ -130,55 +181,7 @@ class xmpp_stream // {{{
 						$this->priority[] = $rr['pri'];
 						$this->weight[] = $rr['weight'];*/
 					}
-					ksort ($recs);
-					foreach ($recs as $rrs)
-					{
-						if (count ($rrs) == 1)
-						{
-							$this->port[] = $rrs[0]['port'];
-							$this->server[] = $rrs[0]['server'];
-						}
-						else
-						{
-							function nul_first ($a, $b)
-							{
-								if ($a['weight'] == 0 && $b['weight'] == 0)
-									return 0;
-								if ($a['weight'] == 0)
-									return -1; // nul weighted records are first.
-								if ($b['weight'] == 0)
-									return 1; // nul weighted records are first.
-								else
-									return 0; // other than this, I don't care.
-							}
-
-							usort ($rrs, nul_first);
-							$w_sum = 0;
-							foreach ($rrs as $rr)
-							{
-								$w_sum += $rr['weight'];
-								$rr['weight'] = $w_sum;
-							}
-							$rand_num = rand (0, $w_sum);
-							foreach ($rrs as $k => $rr)
-							{
-								if ($rr['weight'] >= $rand_num)
-								{
-									$this->port[] = $rr['port'];
-									$this->server[] = $rr['server'];
-									unset ($rrs[$k]);
-									break;
-								}
-								foreach ($rrs as $rr)
-								{
-									$w_sum += $rr['weight'];
-									$rr['weight'] = $w_sum;
-								}
-								$rand_num = rand (0, $w_sum);
-							}
-						}
-
-					}
+					$this->srv_sort ($recs);
 				}
 				else
 				{
