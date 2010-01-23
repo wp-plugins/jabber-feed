@@ -274,6 +274,8 @@ the p tag of class 'postmetadata alt' in the default theme).
 
 == Todo ==
 
+* TTL support for DNS/SRV records.
+
 * Still need to test extensively (and if necessary improve) the right system
 in Wordpress:
 	- will the non-approved comments be published on the comment nodes?
@@ -366,6 +368,13 @@ Have a nice life!
 
 == 0.5 ==
 
-- Better SRV gestion: the plugin can now "switch" between the NET_DNS library
+- Better SRV library gestion: the plugin can now "switch" between the NET_DNS library
   if installed, to the core PHP SRV functions (if using Linux or a Windows
   with a recent PHP) or nothing (no SRV gestion).
+  Hence for Linux or Windows (with recent PHP), no additional library is
+  anymore required.
+
+- Algorithm for dealing with priority and weight of target in SRV records is
+  now implemented, exactly as in RFC 2782. Therefore the only missing part for
+  a full SRV records compliance is now a support of Time To Live, which could
+  be interesting next implementation.
