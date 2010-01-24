@@ -3,7 +3,7 @@
 Plugin Name: Jabber Feed
 Plugin URI: http://jehan.zemarmot.net/blog/jabber-feed/
 Description: a Jabber publishing notification for articles and comments.
-Version: 0.4
+Version: 0.5
 Author: Jehan Hysseo
 Author URI: http://jehan.zemarmot.net
 */
