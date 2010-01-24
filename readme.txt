@@ -366,7 +366,7 @@ Have a nice life!
 
 == Changelog ==
 
-== 0.5 ==
+= 0.5 =
 
 - Better SRV library gestion: the plugin can now "switch" between the NET_DNS library
   if installed, to the core PHP SRV functions (if using Linux or a Windows
