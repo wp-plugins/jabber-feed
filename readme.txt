@@ -5,7 +5,7 @@ Donate link: http://jehan.zemarmot.net/blog/jabber-feed/
 Tags: jabber, xmpp, pubsub, xep-0060, notification, feed, posts, comments
 requires at least: 2.0
 Tested up to: 2.9.1
-Stable tag: 0.4
+Stable tag: 0.5
 
 This plugin feeds Jabber server pubsub nodes when new posts are published on
 Wordpress and comments are added.
