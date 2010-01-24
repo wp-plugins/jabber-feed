@@ -55,6 +55,7 @@ jabber login will be tested and the pubsub nodes created. Hence if anything is
 wrong with your configuration, you will be immediately informed.
 6. This plugin also defines two templates:
 - `jabber_feed_get ($node = 'posts', $what = 'url', $text = '')` will return a string being a url (bare, or in a 'a' or 'link' tag).
+
 - `jabber_feed_display ($node = 'posts', $what = 'url', $text = '')` is the same as the previous template but display the string instead of returning it!
 These template functions can be used in your theme.
 Note that if your theme uses the 'wp_head' function in its header (most cases), a autodiscovery link on the post node will be automatically generated in the header. Otherwise, you can add it by yourself with these functions for instance.
@@ -366,7 +367,7 @@ Have a nice life!
 
 == Changelog ==
 
-== 0.5 ==
+= 0.5 =
 
 - Better SRV library gestion: the plugin can now "switch" between the NET_DNS library
   if installed, to the core PHP SRV functions (if using Linux or a Windows
