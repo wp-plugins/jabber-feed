@@ -17,6 +17,12 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA }}}
 */
 
+$semaphore_key = ftok (__FILE__, 'j'); // PHP 4 > 4.2.0, PHP 5
+$semaphore = sem_get ($semaphore_key, 1); // no more than one process at once (so this sem is a mutex) will be able to run this script.
+
+if (! sem_acquire ($semaphore))
+	exit ();
+
 require_once (dirname(__FILE__) . '/xmpp_stream.php');
 
 // Even when the user's browser disconnects, the xmpp job will continue its execution.
@@ -29,9 +35,13 @@ if (!defined ('ABSPATH'))
 $jobs = get_option ('jabber_feed_jobs');
 
 if (empty ($jobs))
+{
+	// even though this is the cleaner, in fact PHP will automatically release any semaphore at the end of the script.
+	sem_release ($semaphore);
 	exit ();
+}
 
-function do_publish_posts ()
+function do_publish ()
 {
 	global $jobs;
 	
@@ -80,19 +90,22 @@ function do_publish_posts ()
 					$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
 				// XXX: to check, but 'id' can be removed anyway, as it is $post_ID...
 				unset ($jobs[$post_ID]);
+				// Updating the options at each iteration is probably not the most efficient.
+				// But imaging that there is a huge job list which times-out this php script in the middle...
+				// Then it would end without notifying its successful queries, if any, then it may time out forever (instead of progressively update all, execution after execution).
+				update_option('jabber_feed_jobs', $jobs);
+				update_option('jabber_feed_post_history', $history);
 			}
 			$xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID);
 			// Not fatale if the comments leaf creation fails.
 		}
 		$xs->quit ();
 	}
-
-	update_option('jabber_feed_post_history', $history);
 }
 
 do_publish ();
-update_option('jabber_feed_jobs', $jobs);
 
+sem_release ($semaphore);
 exit ();
 
 ?>

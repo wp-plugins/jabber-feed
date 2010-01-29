@@ -72,6 +72,7 @@ function xmpp_publish_post ($post_ID) // {{{
 
 	if (function_exists ('wp_remote_request'))
 	{
+		$feed['type'] = 'post';
 		$jobs = get_option ('jabber_feed_jobs');
 		$jobs[$post_ID] = $feed;
 		update_option('jabber_feed_jobs', $jobs);
