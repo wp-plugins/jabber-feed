@@ -79,11 +79,18 @@ Without this, you won't have access to the XHTML option and all notifications wi
 
 * OPTIONAL: if the plugin is installed on a BSD (Mac included),
 in order to use the SRV records on the admin JID, which is the correct way of resolving the server and port addresses for a domain, the PEAR extension NET_DNS must be installed: 'pear install NET_DNS' (Note that it will ask to have php compiled with 'mhash' option).
-If it is installed on Windows, it is not anymore mandatory if you have PHP
+If it is installed on Windows, it is not anymore useful if you have PHP
 5.3.0 or later installed (under this version of PHP, you should also install
 this extension to benefit SRV records).
 Linux servers do not need this extension to have SRV.
 Note for gentoo users: you must set the 'mhash' USE flag.
+
+* OPTIONAL: for more efficient resource use (in particular in order to avoid
+ multiple and useless connection to the XMPP server when you could do only
+ one), it is recommended to compile PHP with the semaphores system V: option
+ --enable-sysvsem at compilation time.
+ This is in particular recommended if your publication system has a lot of
+ activity (new posts, pages, comments, deletions, etc.).
 
 = Working Platforms =
 
@@ -378,6 +385,13 @@ Have a nice life!
   with a big payload (typically any article I would write in my public diary
   :p), though I heard it should be improved a lot in the coming ejabberd
   version.
+
+- In order not to connect several times unecessarily to the XMPP server, the
+  plugin will be able to connect once for several close publications
+  (comments, posts, deletions, etc.). For ensuring unicity of connections, it
+  will use either the PHP semaphores API if PHP has been compiled with
+  --enable-sysvsem, or will fall back to some unreliable system (but still ok
+  in most case, and not too heavy). Yet the PHP semaphores are prefered.
 
 = 0.5 =
 
