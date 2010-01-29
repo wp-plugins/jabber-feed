@@ -356,9 +356,7 @@ remind yes.
 == Contacts ==
 
 You can have some news about this plugin on [my freedom
-haven](http://jehan.zemarmot.net "my public diary") or of course, by
-subscribing on the following xmpp pubsub node:
-http://jehan.zemarmot.net/blog/category/technologies/programmation/jabber-feed/feed/
+haven](http://jehan.zemarmot.net "my public diary").
 If you want to contact me by jabber, ask me first by email (which you can find
 on my website. Yes I know, this is complicated: but I like my tranquility, so
 I make a filter).
