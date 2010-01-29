@@ -50,7 +50,7 @@ class xmpp_stream // {{{
 	private $logged = false;
 
 	// If nothing happens on the stream after 5 seconds, I shutdown.
-	private $timeout = 5;
+	private $timeout = 20;
 	public $last_error = '';
 
 	// Known authentication mechanism.

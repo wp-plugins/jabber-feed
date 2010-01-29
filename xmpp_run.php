@@ -17,15 +17,21 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA }}}
 */
 
+require_once (dirname(__FILE__) . '/xmpp_stream.php');
+
 // Even when the user's browser disconnects, the xmpp job will continue its execution.
 ignore_user_abort(true);
+
+/** Setup WordPress environment */
+if (!defined ('ABSPATH'))
+	require_once ('../../../wp-load.php');
 
 $jobs = get_option ('jabber_feed_jobs');
 
 if (empty ($jobs))
 	exit ();
 
-function do_publish ()
+function do_publish_posts ()
 {
 	global $jobs;
 	
@@ -80,14 +86,13 @@ function do_publish ()
 		}
 		$xs->quit ();
 	}
-	else
-		$history[$post_ID] = array ('error' => $xs->last_error);
 
 	update_option('jabber_feed_post_history', $history);
 }
 
 do_publish ();
-
 update_option('jabber_feed_jobs', $jobs);
+
+exit ();
 
 ?>

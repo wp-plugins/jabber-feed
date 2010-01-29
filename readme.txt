@@ -365,6 +365,20 @@ Have a nice life!
 
 == Changelog ==
 
+= 0.6 =
+
+- XMPP connections now in non blocking mode for immediate 'apparent' execution
+  of pages (post in particular). Technically I used the Wordpress HTTP API
+  (typically I do a desynchronized http request in non blocking mode, meaning
+  I don't wait for the answer). As the particular API and function I used
+  dates from 2.7.0, I made a test on existence of the HTTP API, so that the 
+  old blocking method for older Wordpress without this API is used in such
+  case.
+  This will definitely fix the slowness issues of ejabberd wen sending items
+  with a big payload (typically any article I would write in my public diary
+  :p), though I heard it should be improved a lot in the coming ejabberd
+  version.
+
 = 0.5 =
 
 - Better SRV library gestion: the plugin can now "switch" between the NET_DNS library

@@ -55,10 +55,6 @@ function xmpp_publish_post ($post_ID) // {{{
 	$feed['content'] = '';
 	$feed['excerpt'] = '';
 	$feed['link'] = $post->guid;
-	//$publishxhtml = true;
-
-	/*$count_posts = wp_count_posts ();
-	$published_posts = $count_posts->publish;*/
 
 	if (empty ($configuration['publish_extract']))
 		$feed['content'] = $post_content;
@@ -71,73 +67,73 @@ function xmpp_publish_post ($post_ID) // {{{
 	{
 		$pattern = '/<!--\s*more(.|\n)*$/';
 		$replacement = '<br /><a href="' . $link . '">' . __("Read the rest of this entry on the website.") . '</a>';
-		//$count_rep = 0;
-		$feed['excerpt'] = preg_replace ($pattern, $replacement, $post_content, 1);//, $count_rep);
+		$feed['excerpt'] = preg_replace ($pattern, $replacement, $post_content, 1);
 	}
 
-	/*if (empty ($configuration['publish_xhtmlim']))
+	if (function_exists ('wp_remote_request'))
 	{
-		$feed_content = 'a'; //xhtml2bare ($feed_content);
-		$feed_excerpt = 'b' ;//xhtml2bare ($feed_excerpt);
-	}*/
-	//if (empty ($configuration['publish_xhtml']))
-	//	$publishxhtml = false; 
-	/*{
-		$feed_content = xhtml2bare ($feed_content);
-		$feed_excerpt = xhtml2bare ($feed_excerpt);
+		$jobs = get_option ('jabber_feed_jobs');
+		$jobs[$post_ID] = $feed;
+		update_option('jabber_feed_jobs', $jobs);
+
+		//$xmpp_run_url = get_bloginfo ('wpurl') . rtrim (dirname (__FILE__)) . '/xmpp_run.php';
+		$xmpp_run_url = WP_PLUGIN_URL . '/' . str_replace (basename (__FILE__), "", plugin_basename (__FILE__)) . 'xmpp_run.php';
+		wp_remote_request ($xmpp_run_url, array ('blocking' => false));
 	}
-	else
+	else // For retrocompatibility with Wordpress < 2.7.0 which does not have the HTTP API. Maybe to remove some day.
 	{
-		$feed_content = fixxhtml ($feed_content);
-		$feed_excerpt = fixxhtml ($feed_excerpt);
-	} */
-		
-	$jobs = get_option ('jabber_feed_jobs');
-	$jobs[$post_ID] = $feed;
-	update_option('jabber_feed_jobs', $jobs);
+		$count_posts = wp_count_posts ();
+		$published_posts = $count_posts->publish;
 
-	/*$xs = new xmpp_stream ($configuration['node'],
-		$configuration['domain'], $configuration['password'],
-		'bot', $configuration['server'], $configuration['port']);
-	
-	$history = get_option('jabber_feed_post_history');
-
-	if ($xs->log ())
-	{
-		$xs->configure_node ($configuration['pubsub_server'],
-					$configuration['pubsub_node'] . '/posts',
-					min (20, $published_posts * 2));
-		// I don't check for the result...
-		if (! $xs->notify ($configuration['pubsub_server'],
-					$configuration['pubsub_node'] . '/posts', $post_ID, $feed_title,
-					//$link, $feed_content, $feed_excerpt)
-				$link, $feed_content, $feed_excerpt, $publishxhtml))
-		{
-			$history[$post_ID] = array ('error' => $xs->last_error);
-		}
+		if (empty ($configuration['publish_xhtml']))
+			$publishxhtml = false; 
 		else
+			$publishxhtml = true;
+
+		$xs = new xmpp_stream ($configuration['node'],
+			$configuration['domain'], $configuration['password'],
+			'bot', $configuration['server'], $configuration['port']);
+
+		$history = get_option('jabber_feed_post_history');
+
+		if ($xs->log ())
 		{
-			if (array_key_exists ($post_ID, $history))
+			$xs->configure_node ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/posts',
+				min (20, $published_posts * 2));
+			// I don't check for the result...
+			if (! $xs->notify ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/posts', $post_ID, $feed['title'],
+				//$link, $feed_content, $feed_excerpt)
+				$feed['link'], $feed['content'], $feed['excerpt'], $publishxhtml))
 			{
-				if (array_key_exists ('error', $history[$post_ID]))
-				{
-					unset ($history[$post_ID]['error']);
-					$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
-				}
-				else
-					$history[$post_ID]['updated'] = date ('c');
+				$history[$post_ID] = array ('error' => $xs->last_error);
 			}
 			else
-				$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
+			{
+				if (array_key_exists ($post_ID, $history))
+				{
+					if (array_key_exists ('error', $history[$post_ID]))
+					{
+						unset ($history[$post_ID]['error']);
+						$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
+					}
+					else
+						$history[$post_ID]['updated'] = date ('c');
+				}
+				else
+					$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
 				// XXX: to check, but 'id' can be removed anyway, as it is $post_ID...
+			}
+			$xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID);
+			// Not fatale if the comments leaf creation fails.
+			$xs->quit ();
 		}
-		$xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID);
-		// Not fatale if the comments leaf creation fails.
-		$xs->quit ();
-	}
-	update_option('jabber_feed_post_history', $history);*/
+		else
+			$history[$post_ID] = array ('error' => $xs->last_error);
 
-	wp_remote_post ('./xmpp_run.php', array('timeout' => 0.01, 'blocking' => false));
+		update_option('jabber_feed_post_history', $history);
+	}
 	return $post_ID;
 } // }}}
 
