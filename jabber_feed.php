@@ -72,10 +72,10 @@ function xmpp_publish_post ($post_ID) // {{{
 
 	if (function_exists ('wp_remote_request'))
 	{
-		$feed['type'] = 'post';
-		$jobs = get_option ('jabber_feed_jobs');
+		$feed['type'] = 'publish';
+		$jobs = get_option ('jabber_feed_single_jobs');
 		$jobs[$post_ID] = $feed;
-		update_option('jabber_feed_jobs', $jobs);
+		update_option('jabber_feed_single_jobs', $jobs);
 
 		//$xmpp_run_url = get_bloginfo ('wpurl') . rtrim (dirname (__FILE__)) . '/xmpp_run.php';
 		$xmpp_run_url = WP_PLUGIN_URL . '/' . str_replace (basename (__FILE__), "", plugin_basename (__FILE__)) . 'xmpp_run.php';
@@ -146,26 +146,41 @@ function xmpp_delete_post_page ($ID) // {{{
 	if (empty ($configuration['publish_posts']) || ! array_key_exists ($ID, $history) || array_key_exists ('error', $history[$ID]))
 		return $ID;
 
-	$xs = new xmpp_stream ($configuration['node'],
-		$configuration['domain'], $configuration['password'],
-		'bot', $configuration['server'], $configuration['port']);
-	
-	if (! ($xs->log ()
-		&& $xs->delete_item ($configuration['pubsub_server'],
-			$configuration['pubsub_node'] . '/posts', $ID) //$history[$ID]['id'])
-		 && $xs->delete_node ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $ID)
-		&& $xs->quit ()))
+	if (function_exists ('wp_remote_request'))
 	{
-		// I remove anyway the history as otherwise, it would be "lost" and never removed:
-		// the ID does not exist anymore because the post is anyway removed.
-		unset ($history[$ID]);
-		jabber_feed_log ("Error on removing post: ". $xs->last_error);
+		$query = array ();
+		$query['type'] = 'delete';
+
+		$jobs = get_option ('jabber_feed_single_jobs');
+		$jobs[$ID] = $query;
+		update_option('jabber_feed_single_jobs', $jobs);
+
+		$xmpp_run_url = WP_PLUGIN_URL . '/' . str_replace (basename (__FILE__), "", plugin_basename (__FILE__)) . 'xmpp_run.php';
+		wp_remote_request ($xmpp_run_url, array ('blocking' => false));
 	}
-	else
+	else // For retrocompatibility with Wordpress < 2.7.0 which does not have the HTTP API. Maybe to remove some day.
 	{
+		$xs = new xmpp_stream ($configuration['node'],
+			$configuration['domain'], $configuration['password'],
+			'bot', $configuration['server'], $configuration['port']);
+
+		if (! ($xs->log ()
+			&& $xs->delete_item ($configuration['pubsub_server'],
+				$configuration['pubsub_node'] . '/posts', $ID) //$history[$ID]['id'])
+				&& $xs->delete_node ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $ID)
+				&& $xs->quit ()))
+		{
+			// I remove anyway the history as otherwise, it would be "lost" and never removed:
+			// the ID does not exist anymore because the post is anyway removed.
 			unset ($history[$ID]);
+			jabber_feed_log ("Error on removing post: ". $xs->last_error);
+		}
+		else
+		{
+			unset ($history[$ID]);
+		}
+		update_option('jabber_feed_post_history', $history);
 	}
-	update_option('jabber_feed_post_history', $history);
 
 	return $ID;
 } // }}}

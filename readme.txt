@@ -91,6 +91,7 @@ Note for gentoo users: you must set the 'mhash' USE flag.
  --enable-sysvsem at compilation time.
  This is in particular recommended if your publication system has a lot of
  activity (new posts, pages, comments, deletions, etc.).
+ Note for Gentoo users: you must set the 'sysvipc' USE flag for PHP.
 
 = Working Platforms =
 
@@ -392,6 +393,9 @@ Have a nice life!
   will use either the PHP semaphores API if PHP has been compiled with
   --enable-sysvsem, or will fall back to some unreliable system (but still ok
   in most case, and not too heavy). Yet the PHP semaphores are prefered.
+  Note that the alternate system uses the transient API from Wordpress
+  available only from Woprdress 2.8.0. Hence the plugin is only usable from
+  Wordpress 2.8.0 with this method.
 
 = 0.5 =
 

@@ -49,7 +49,7 @@ else
 
 require_once (dirname(__FILE__) . '/xmpp_stream.php');
 
-$jobs = get_option ('jabber_feed_jobs');
+$jobs = get_option ('jabber_feed_single_jobs');
 
 if (empty ($jobs))
 {
@@ -87,37 +87,57 @@ function do_publish ()
 		// I don't check for the result...
 		foreach ($jobs as $post_ID => $feed)
 		{
-			if (! $xs->notify ($configuration['pubsub_server'],
-				$configuration['pubsub_node'] . '/posts', $post_ID, $feed['title'],
-				//$link, $feed_content, $feed_excerpt)
-				$feed['link'], $feed['content'], $feed['excerpt'], $publishxhtml))
+			if ($feed['type'] == 'publish')
 			{
-				$history[$post_ID] = array ('error' => $xs->last_error);
-			}
-			else
-			{
-				if (array_key_exists ($post_ID, $history))
+				if (! $xs->notify ($configuration['pubsub_server'],
+					$configuration['pubsub_node'] . '/posts', $post_ID, $feed['title'],
+					//$link, $feed_content, $feed_excerpt)
+					$feed['link'], $feed['content'], $feed['excerpt'], $publishxhtml))
 				{
-					if (array_key_exists ('error', $history[$post_ID]))
-					{
-						unset ($history[$post_ID]['error']);
-						$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
-					}
-					else
-						$history[$post_ID]['updated'] = date ('c');
+					$history[$post_ID] = array ('error' => $xs->last_error);
 				}
 				else
-					$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
-				// XXX: to check, but 'id' can be removed anyway, as it is $post_ID...
-				unset ($jobs[$post_ID]);
-				// Updating the options at each iteration is probably not the most efficient.
-				// But imaging that there is a huge job list which times-out this php script in the middle...
-				// Then it would end without notifying its successful queries, if any, then it may time out forever (instead of progressively update all, execution after execution).
-				update_option('jabber_feed_jobs', $jobs);
+				{
+					if (array_key_exists ($post_ID, $history))
+					{
+						if (array_key_exists ('error', $history[$post_ID]))
+						{
+							unset ($history[$post_ID]['error']);
+							$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
+						}
+						else
+							$history[$post_ID]['updated'] = date ('c');
+					}
+					else
+						$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
+					// XXX: to check, but 'id' can be removed anyway, as it is $post_ID...
+					unset ($jobs[$post_ID]);
+					// Updating the options at each iteration is probably not the most efficient.
+					// But imaging that there is a huge job list which times-out this php script in the middle...
+					// Then it would end without notifying its successful queries, if any, then it may time out forever (instead of progressively update all, execution after execution).
+					update_option('jabber_feed_single_jobs', $jobs);
+					update_option('jabber_feed_post_history', $history);
+				}
+				$xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID);
+				// Not fatale if the comments leaf creation fails.
+			}
+			else if ($feed['type'] == 'delete')
+			{
+				if (! ($xs->delete_item ($configuration['pubsub_server'],
+						$configuration['pubsub_node'] . '/posts', $ID) //$history[$ID]['id'])
+						&& $xs->delete_node ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $ID)))
+				{
+					// I remove anyway the history as otherwise, it would be "lost" and never removed:
+					// the ID does not exist anymore because the post is anyway removed.
+					unset ($history[$ID]);
+					jabber_feed_log ("Error on removing post: ". $xs->last_error);
+				}
+				else
+				{
+					unset ($history[$ID]);
+				}
 				update_option('jabber_feed_post_history', $history);
 			}
-			$xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID);
-			// Not fatale if the comments leaf creation fails.
 		}
 		$xs->quit ();
 		// in case we finish by an error, I need to save.
