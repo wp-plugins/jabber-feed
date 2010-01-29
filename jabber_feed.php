@@ -36,6 +36,8 @@ require_once(dirname(__FILE__) . '/jf_widget.php');
 
 function xmpp_publish_post ($post_ID) // {{{
 {
+	$feed = array ();
+
 	$configuration = get_option ('jabber_feed_configuration');
 
 	if (empty ($configuration['publish_posts']))
@@ -46,31 +48,31 @@ function xmpp_publish_post ($post_ID) // {{{
 	$post = get_post ($post_ID, OBJECT);
 	$post_title = $post->post_title;
 	$post_author = get_userdata ($post->post_author)->display_name;
-	$feed_title = '[' . $blog_title . "] " . $post_title . " (publisher: " . $post_author . ')';
+	$feed['title'] = '[' . $blog_title . "] " . $post_title . " (publisher: " . $post_author . ')';
 
 	$post_content = $post->post_content;
 	$post_excerpt = $post->post_excerpt;
-	$feed_content = '';
-	$feed_excerpt = '';
-	$link = $post->guid;
-	$publishxhtml = true;
+	$feed['content'] = '';
+	$feed['excerpt'] = '';
+	$feed['link'] = $post->guid;
+	//$publishxhtml = true;
 
-	$count_posts = wp_count_posts ();
-	$published_posts = $count_posts->publish;
+	/*$count_posts = wp_count_posts ();
+	$published_posts = $count_posts->publish;*/
 
 	if (empty ($configuration['publish_extract']))
-		$feed_content = $post_content;
+		$feed['content'] = $post_content;
 	elseif (! empty ($post_excerpt))
 	{
-		$feed_excerpt = $post_excerpt;
-		$feed_excerpt .= '<br /><a href="' . $link . '">' . __("Read the rest of this entry on the website.") . '</a>';
+		$feed['excerpt'] = $post_excerpt;
+		$feed['excerpt'] .= '<br /><a href="' . $feed['link'] . '">' . __("Read the rest of this entry on the website.") . '</a>';
 	}
 	else
 	{
 		$pattern = '/<!--\s*more(.|\n)*$/';
 		$replacement = '<br /><a href="' . $link . '">' . __("Read the rest of this entry on the website.") . '</a>';
 		//$count_rep = 0;
-		$feed_excerpt = preg_replace ($pattern, $replacement, $post_content, 1);//, $count_rep);
+		$feed['excerpt'] = preg_replace ($pattern, $replacement, $post_content, 1);//, $count_rep);
 	}
 
 	/*if (empty ($configuration['publish_xhtmlim']))
@@ -78,8 +80,8 @@ function xmpp_publish_post ($post_ID) // {{{
 		$feed_content = 'a'; //xhtml2bare ($feed_content);
 		$feed_excerpt = 'b' ;//xhtml2bare ($feed_excerpt);
 	}*/
-	if (empty ($configuration['publish_xhtml']))
-		$publishxhtml = false; 
+	//if (empty ($configuration['publish_xhtml']))
+	//	$publishxhtml = false; 
 	/*{
 		$feed_content = xhtml2bare ($feed_content);
 		$feed_excerpt = xhtml2bare ($feed_excerpt);
@@ -90,7 +92,11 @@ function xmpp_publish_post ($post_ID) // {{{
 		$feed_excerpt = fixxhtml ($feed_excerpt);
 	} */
 		
-	$xs = new xmpp_stream ($configuration['node'],
+	$jobs = get_option ('jabber_feed_jobs');
+	$jobs[$post_ID] = $feed;
+	update_option('jabber_feed_jobs', $jobs);
+
+	/*$xs = new xmpp_stream ($configuration['node'],
 		$configuration['domain'], $configuration['password'],
 		'bot', $configuration['server'], $configuration['port']);
 	
@@ -129,8 +135,9 @@ function xmpp_publish_post ($post_ID) // {{{
 		// Not fatale if the comments leaf creation fails.
 		$xs->quit ();
 	}
-	update_option('jabber_feed_post_history', $history);
+	update_option('jabber_feed_post_history', $history);*/
 
+	wp_remote_post ('./xmpp_run.php', array('timeout' => 0.01, 'blocking' => false));
 	return $post_ID;
 } // }}}
 
@@ -607,7 +614,7 @@ function jabber_feed_custom_column ($column, $id) // {{{
 {
 	if ($column == 'jabber_feed')
 	{
-		$history = get_option('jabber_feed_post_history');
+		$history = get_option ('jabber_feed_post_history');
 		if (array_key_exists ($id, $history))
 		{
 			if (array_key_exists ('error', $history[$id]))
