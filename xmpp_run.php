@@ -33,35 +33,35 @@ if (function_exists (sem_get))
 		exit ();
 }
 else
-{
-	// If PHP has not been compiled with the semaphore support, I will 'very roughly' fake them.
-	// At this level, it is more difficult to implement as good mutual exclusion as at system or at least lower level. Here I use the Wordpress db, which is highly inefficient.
-	// Hence I see a way to implement not too bad exclusion, but it would imply 2 read-passes and 1 or 2 write-pass on the db!
-	// Therefore I will just make it simple, but with higher risk of letting two queries executed at the same time. It is not that "bad" here as there would be no data corruption (just some XMPP queries maybe sent twice, no big deal), but I prefer this than a very heavy exclusion check at each script run. The best is obviously to compile PHP with '--enable-sysvsem'.
-	$semaphore = get_transient ('xmpp_run_sem');
-	if (! $semaphore)
-		set_transient ('xmpp_run_sem', TRUE, 300);
-	// I set the life of this transient data for 5 min. The script would normally delete it before, but if there is any issue, at least it is cleaned (and 5 min is a reasonable amount of time. I doubt the script would last that long... or it has a problem).
-	else
-		exit ();
-	// If there is already a semaphore, I don't wait, so there may be some query delay if the current process did not get the last data on time. But that's the problem of not having sreal semaphores!
-}
+    exit ();
 
 require_once (dirname(__FILE__) . '/xmpp_stream.php');
 
+$sem_jobs__key = ftok ("jabber_feed_single_jobs", 'j'); // PHP 4 > 4.2.0, PHP 5
+$sem_jobs = sem_get ($semaphore_key, 1); 
+if (! sem_acquire ($sem_jobs))
+{
+    sem_release ($semaphore);
+    exit (); // Should never happen (the acquisition should block until the lock is got). But in any case, no job is lost (still in the queue). So exiting until next time should be fine. 
+}
+
 $jobs = get_option ('jabber_feed_single_jobs');
+
+// I want to keep this specific semaphore locked the lesser time. So I empty it and release it immediately.
+// If something goes wrong during the execution of this script, I will acquire it again and reinject the jobs.
+// Of course there is one wrong case when something goes wrong, but the script does not end (so no possible reinjection).
+// This special case could be taken care of, probably with another option (or a transient). But I am not sure it is worth it here.
+update_option('jabber_feed_single_jobs', array ());
+sem_release ($sem_jobs);
 
 if (empty ($jobs))
 {
 	// even though this is the cleaner, in fact PHP will automatically release any semaphore at the end of the script.
-	if (function_exists (sem_get))
-		sem_release ($semaphore);
-	else
-		delete_transient ('xmpp_run_sem');
+    sem_release ($semaphore);
 	exit ();
 }
 
-function do_publish ()
+function do_publish () // {{{
 {
 	global $jobs;
 	
@@ -112,11 +112,6 @@ function do_publish ()
 						$history[$post_ID] = array ('published' => date ('c'), 'updated' => date ('c'), 'id' => $post_ID);
 					// XXX: to check, but 'id' can be removed anyway, as it is $post_ID...
 					unset ($jobs[$post_ID]);
-					// Updating the options at each iteration is probably not the most efficient.
-					// But imaging that there is a huge job list which times-out this php script in the middle...
-					// Then it would end without notifying its successful queries, if any, then it may time out forever (instead of progressively update all, execution after execution).
-					update_option('jabber_feed_single_jobs', $jobs);
-					update_option('jabber_feed_post_history', $history);
 				}
 				$xs->create_leaf ($configuration['pubsub_server'], $configuration['pubsub_node'] . '/comments/' . $post_ID);
 				// Not fatale if the comments leaf creation fails.
@@ -133,24 +128,33 @@ function do_publish ()
 					jabber_feed_log ("Error on removing post: ". $xs->last_error);
 				}
 				else
-				{
 					unset ($history[$ID]);
-				}
-				update_option('jabber_feed_post_history', $history);
 			}
 		}
 		$xs->quit ();
-		// in case we finish by an error, I need to save.
-		update_option('jabber_feed_post_history', $history);
 	}
-}
+    update_option('jabber_feed_post_history', $history);
+
+    // So in the end, I send the job list. Hopefully, it should be empty by now. If it is not (XMPP error?), I append it to the current job list (some new jobs may have been added during this script).
+    if (!empty ($jobs))
+    {
+        $sem_jobs__key = ftok ("jabber_feed_single_jobs", 'j'); // PHP 4 > 4.2.0, PHP 5
+        $sem_jobs = sem_get ($semaphore_key, 1); 
+        if (! sem_acquire ($sem_jobs))
+            return; // Should never happen (the acquisition should block until the lock is got). If this happens anyway, we might (depending on a lot of "if" based on errors, so it is mainly not likely) lose some jobs.
+        $current_jobs = get_option ('jabber_feed_single_jobs');
+
+        // The order for the '+' operator's parameters is meaningful. $current_jobs is newer, so if any duplicate, I want its value to be used, not the one in $job.
+        // Hence it must be the first parameter here.
+        update_option('jabber_feed_single_jobs', $current_jobs + $jobs);
+        sem_release ($sem_jobs);
+    }
+} // }}}
 
 do_publish ();
 
-if (function_exists (sem_get))
-	sem_release ($semaphore);
-else
-	delete_transient ('xmpp_run_sem');
+sem_release ($semaphore);
+
 exit ();
 
 ?>

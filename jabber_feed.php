@@ -70,18 +70,28 @@ function xmpp_publish_post ($post_ID) // {{{
 		$feed['excerpt'] = preg_replace ($pattern, $replacement, $post_content, 1);
 	}
 
-	if (function_exists ('wp_remote_request'))
+    $no_concurrency_run = false;
+
+	if (function_exists ('wp_remote_request') && function_exists (sem_get))
 	{
 		$feed['type'] = 'publish';
+        $semaphore_key = ftok ("jabber_feed_single_jobs", 'j'); // PHP 4 > 4.2.0, PHP 5
+        $semaphore = sem_get ($semaphore_key, 1); 
+        if (! sem_acquire ($semaphore))
+            $no_concurrency_run = true; // This should not happen, but if ever the lock cannot be got for some reason, at least I publish the old way.
 		$jobs = get_option ('jabber_feed_single_jobs');
 		$jobs[$post_ID] = $feed;
 		update_option('jabber_feed_single_jobs', $jobs);
+        sem_release ($semaphore);
 
 		//$xmpp_run_url = get_bloginfo ('wpurl') . rtrim (dirname (__FILE__)) . '/xmpp_run.php';
 		$xmpp_run_url = WP_PLUGIN_URL . '/' . str_replace (basename (__FILE__), "", plugin_basename (__FILE__)) . 'xmpp_run.php';
 		wp_remote_request ($xmpp_run_url, array ('blocking' => false));
-	}
-	else // For retrocompatibility with Wordpress < 2.7.0 which does not have the HTTP API. Maybe to remove some day.
+    }
+    else
+        $no_concurrency_run = true;
+
+	if ($no_concurrency_run) // For retrocompatibility with Wordpress < 2.7.0 which does not have the HTTP API, or PHP compiled without semaphore support.
 	{
 		$count_posts = wp_count_posts ();
 		$published_posts = $count_posts->publish;
@@ -146,19 +156,29 @@ function xmpp_delete_post_page ($ID) // {{{
 	if (empty ($configuration['publish_posts']) || ! array_key_exists ($ID, $history) || array_key_exists ('error', $history[$ID]))
 		return $ID;
 
-	if (function_exists ('wp_remote_request'))
+    $no_concurrency_run = false;
+
+	if (function_exists ('wp_remote_request') && function_exists (sem_get))
 	{
 		$query = array ();
 		$query['type'] = 'delete';
 
+        $semaphore_key = ftok ("jabber_feed_single_jobs", 'j'); // PHP 4 > 4.2.0, PHP 5
+        $semaphore = sem_get ($semaphore_key, 1); 
+        if (! sem_acquire ($semaphore))
+            $no_concurrency_run = true; // This should not happen, but if ever the lock cannot be got for some reason, at least I publish the old way.
 		$jobs = get_option ('jabber_feed_single_jobs');
 		$jobs[$ID] = $query;
 		update_option('jabber_feed_single_jobs', $jobs);
+        sem_release ($semaphore);
 
 		$xmpp_run_url = WP_PLUGIN_URL . '/' . str_replace (basename (__FILE__), "", plugin_basename (__FILE__)) . 'xmpp_run.php';
 		wp_remote_request ($xmpp_run_url, array ('blocking' => false));
 	}
-	else // For retrocompatibility with Wordpress < 2.7.0 which does not have the HTTP API. Maybe to remove some day.
+    else
+        $no_concurrency_run = true;
+
+	if ($no_concurrency_run) // For retrocompatibility with Wordpress < 2.7.0 which does not have the HTTP API or PHP compiled without semaphore support.
 	{
 		$xs = new xmpp_stream ($configuration['node'],
 			$configuration['domain'], $configuration['password'],
