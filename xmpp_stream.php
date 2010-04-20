@@ -24,7 +24,7 @@ Jabber Feed is a plugin for the Wordpress diary engine.
 require_once('Auth/SASL/DigestMD5.php');
 require_once('Auth/SASL/Plain.php');
 require_once('Auth/SASL/CramMD5.php');
-require_once('Auth/SASL/Anonymous.php');
+//require_once('Auth/SASL/Anonymous.php');
 $old_error_level = error_reporting(0);
 include_once "Net/DNS.php"; // For SRV Records. // Optional.
 error_reporting($old_error_level);
@@ -760,11 +760,11 @@ This function set a node as persistent, with at least $size as max_items.
 				}
 
 			}
-			elseif ($this->chosen_mechanism == "ANONYMOUS")
+			/*elseif ($this->chosen_mechanism == "ANONYMOUS")
 			{
 				$sasl = new Auth_SASL_Anonymous ();
 				$uncoded = $sasl->getResponse ();
-			}
+            }*/
 
 			$this->flags['challenged_once'] = true;
 			return;
@@ -925,11 +925,11 @@ This function set a node as persistent, with at least $size as max_items.
 				$uncoded = $sasl->getResponse ($this->node, $this->password, $decoded_challenge);
 				// To be tested. Should the first argument be full jid or just username?
 			}
-			elseif ($this->chosen_mechanism == "ANONYMOUS")
+			/*elseif ($this->chosen_mechanism == "ANONYMOUS")
 			{
 				$sasl = new Auth_SASL_Anonymous ();
 				$uncoded = $sasl->getResponse ();
-			}
+            }*/
 			else
 			{
 				$this->last_error = __('Authentication failure: ');
